@@ -22,11 +22,9 @@ export class UsersService {
       throw new ConflictException('User with this email already exists');
     }
 
-    // Hash the password
     const saltRounds = 10;
     const hashedPassword = await bcrypt.hash(createUserDto.password, saltRounds);
 
-    // Create new user
     const user = this.userRepository.create({
       ...createUserDto,
       password: hashedPassword,
@@ -57,6 +55,7 @@ export class UsersService {
   async findByEmail(email: string): Promise<User | null> {
     return this.userRepository.findOne({
       where: { email },
+      select: ['id', 'email', 'password'],
     });
   }
 
