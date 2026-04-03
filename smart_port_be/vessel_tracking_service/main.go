@@ -1,15 +1,24 @@
 package main
 
-import "github.com/gin-gonic/gin"
+import (
+	"go-server/config"
+	"go-server/routes"
+	"os"
+
+	"github.com/gin-gonic/gin"
+)
 
 func main() {
+	// Load env first
+	config.LoadEnv()
+
 	r := gin.Default()
+	routes.RegisterRoutes(r)
 
-	r.GET("/health", func(c *gin.Context) {
-		c.JSON(200, gin.H{
-			"status": "ok",
-		})
-	})
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
 
-	r.Run(":8080") // Start on port 8080
+	r.Run(":" + port)
 }
