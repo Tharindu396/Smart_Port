@@ -1,0 +1,94 @@
+openapi: 3.0.3
+info:
+  title: Vessel Tracking Service API
+  version: 1.0.0
+  description: OpenAPI specification for the vessel tracking service.
+servers:
+  - url: http://localhost:8080
+    description: Local development server
+paths:
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Health check
+      operationId: getHealth
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                required:
+                  - status
+  /vessels/{mmsi}:
+    get:
+      tags:
+        - Vessels
+      summary: Get the latest cached vessel state
+      operationId: getVesselState
+      parameters:
+        - name: mmsi
+          in: path
+          required: true
+          description: Vessel MMSI identifier
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Latest cached vessel state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Vessel'
+        '404':
+          description: Vessel not found in Redis
+  /ws/vessels:
+    get:
+      tags:
+        - WebSocket
+      summary: Live vessel update stream
+      description: Upgrades to a WebSocket connection and sends each vessel update as a JSON message.
+      operationId: streamVesselUpdates
+      responses:
+        '101':
+          description: Switching protocols to WebSocket
+components:
+  schemas:
+    Vessel:
+      type: object
+      properties:
+        mmsi:
+          type: string
+        name:
+          type: string
+        length:
+          type: number
+          format: float
+        draft:
+          type: number
+          format: float
+        status:
+          type: string
+        lat:
+          type: number
+          format: float
+        lng:
+          type: number
+          format: float
+        speed:
+          type: number
+          format: float
+        heading:
+          type: number
+          format: float
+        timestamp:
+          type: integer
+          format: int64
+      required:
+        - mmsi
