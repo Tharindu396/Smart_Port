@@ -1,0 +1,4 @@
+# Ignore Neo4j database data and logs
+berthing_service/neo4j/
+berthing_service/neo4j/data/
+berthing_service/.env

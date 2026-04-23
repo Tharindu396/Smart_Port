@@ -1,0 +1,16 @@
+version: '3.8'
+services:
+  neo4j-db:
+    image: neo4j:5.12  # Using version 5 to match the latest driver
+    container_name: smartport_neo4j
+    ports:
+      - "7474:7474" # Web Browser Interface
+      - "7687:7687" # Bolt protocol for your Go code
+    volumes:
+      - ./neo4j/data:/data
+      - ./neo4j/logs:/logs
+      - ./neo4j/import:/var/lib/neo4j/import
+      - ./neo4j/plugins:/plugins
+    environment:
+      - NEO4J_AUTH=neo4j/password # Set your local username/password
+      - NEO4J_PLUGINS=["apoc"]     # Optional: useful for complex graph math

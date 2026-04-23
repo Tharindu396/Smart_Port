@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Ignore Neo4j database data and logs
+smart_port_be/berthing_service/neo4j/
