@@ -4,16 +4,21 @@ import (
 	"context"
 	"fmt"
 	"smartport/berthing-service/internal/models"
+	"smartport/berthing-service/internal/infrastructure"
 )
 
 // Service defines the business logic for allocation
 type Service struct {
 	repo Repository
+	producer *infrastructure.KafkaProducer
 }
 
 // NewService initializes the brain with a librarian (repo)
-func NewService(repo Repository) *Service {
-	return &Service{repo: repo}
+func NewService(repo Repository, producer *infrastructure.KafkaProducer) *Service {
+	return &Service{
+		repo:     repo,
+		producer: producer,
+	}
 }
 
 // AllocateBerth handles FR-2.1 (Space Optimization)
@@ -54,28 +59,22 @@ func (s *Service) UpdateSlotDepth(ctx context.Context, slotID string, newDepth f
 	return s.repo.UpdateSlotDepth(ctx, slotID, newDepth)
 }
 
-// CompleteAllocation handles the "Commit" phase of our Saga pattern
-func (s *Service) CompleteAllocation(ctx context.Context, slotIds []string) error {
-    // Business Rule: You could add validation here to check if slots are 
-    // actually in PENDING_PAYMENT status before confirming.
-    
-    err := s.repo.ConfirmReservation(ctx, slotIds)
-    if err != nil {
-        return fmt.Errorf("failed to finalize berth occupancy: %v", err)
-    }
-    return nil
+// CompleteAllocationByVessel finalizes the booking when payment is successful
+func (s *Service) CompleteAllocationByVessel(ctx context.Context, vesselID string) error {
+	// 1. We tell the repo to find all slots tagged with this vessel and make them OCCUPIED
+	err := s.repo.ConfirmReservationByVessel(ctx, vesselID)
+	if err != nil {
+		return fmt.Errorf("failed to finalize allocation for %s: %v", vesselID, err)
+	}
+	return nil
 }
 
-// CancelAllocation handles the "Undo" (Compensating Transaction) if payment fails
-func (s *Service) CancelAllocation(ctx context.Context, slotIds []string) error {
-    // Business Logic: You could check if the slots are currently in 'PENDING_PAYMENT' 
-    // before allowing a cancellation.
-    
-    err := s.repo.CancelReservation(ctx, slotIds)
-    if err != nil {
-        return fmt.Errorf("failed to revert berth lock: %v", err)
-    }
-    
-    // In the future, you might emit a Kafka event here too: "berth.lock_released"
-    return nil
+// CancelAllocationByVessel is the Compensating Transaction for failed payments
+func (s *Service) CancelAllocationByVessel(ctx context.Context, vesselID string) error {
+	// 2. We release any PENDING locks held by this vessel
+	err := s.repo.ReleaseSlotsByVessel(ctx, vesselID)
+	if err != nil {
+		return fmt.Errorf("failed to revert allocation for %s: %v", vesselID, err)
+	}
+	return nil
 }

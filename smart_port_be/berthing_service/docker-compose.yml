@@ -1,16 +1,37 @@
 version: '3.8'
+
 services:
   neo4j-db:
-    image: neo4j:5.12  # Using version 5 to match the latest driver
+    image: neo4j:5.12
     container_name: smartport_neo4j
     ports:
-      - "7474:7474" # Web Browser Interface
-      - "7687:7687" # Bolt protocol for your Go code
+      - "7474:7474"
+      - "7687:7687"
     volumes:
       - ./neo4j/data:/data
       - ./neo4j/logs:/logs
       - ./neo4j/import:/var/lib/neo4j/import
       - ./neo4j/plugins:/plugins
     environment:
-      - NEO4J_AUTH=neo4j/password # Set your local username/password
-      - NEO4J_PLUGINS=["apoc"]     # Optional: useful for complex graph math
+      - NEO4J_AUTH=neo4j/password
+      - NEO4J_PLUGINS=["apoc"]
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: smartport_kafka
+    ports:
+      - "9092:9092"
+    environment:
+      # KRaft Specific Settings
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: 'broker,controller'
+      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@localhost:9093'
+      KAFKA_LISTENERS: 'PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093'
+      KAFKA_INTER_BROKER_LISTENER_NAME: 'PLAINTEXT'
+      KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://localhost:9092'
+      KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT'
+      # General Settings
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      # A unique cluster ID is required for KRaft
+      CLUSTER_ID: 'MkU3OEVBNTcwNTJENDM2Qk'

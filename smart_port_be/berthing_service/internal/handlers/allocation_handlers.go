@@ -76,40 +76,42 @@ func (h *AllocationHandler) UpdateSlot(c *gin.Context) {
 
 // ConfirmPayment handles POST /api/v1/payments/confirm
 func (h *AllocationHandler) ConfirmPayment(c *gin.Context) {
-    var input struct {
-        SlotIDs []string `json:"slot_ids"`
-    }
-    
-    if err := c.ShouldBindJSON(&input); err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid slot IDs"})
-        return
-    }
+	var input struct {
+		VesselID string `json:"vessel_id" binding:"required"`
+	}
+	
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Vessel ID is required"})
+		return
+	}
 
-    err := h.service.CompleteAllocation(c.Request.Context(), input.SlotIDs)
-    if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-        return
-    }
+	// Now using the "ByVessel" orchestration method we just built
+	err := h.service.CompleteAllocationByVessel(c.Request.Context(), input.VesselID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
 
-    c.JSON(http.StatusOK, gin.H{"message": "Payment confirmed, berth is now permanently occupied"})
+	c.JSON(http.StatusOK, gin.H{"message": "Payment confirmed for vessel " + input.VesselID})
 }
+
 // CancelAllocation handles POST /api/v1/payments/cancel
 func (h *AllocationHandler) CancelAllocation(c *gin.Context) {
-    var input struct {
-        SlotIDs []string `json:"slot_ids"`
-    }
-    
-    if err := c.ShouldBindJSON(&input); err != nil {
-        c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid data"})
-        return
-    }
+	var input struct {
+		VesselID string `json:"vessel_id" binding:"required"`
+	}
+	
+	if err := c.ShouldBindJSON(&input); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Vessel ID is required"})
+		return
+	}
 
-    // Call service to unlock the slots
-    err := h.service.CancelAllocation(c.Request.Context(), input.SlotIDs)
-    if err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-        return
-    }
+	// Compensating Transaction triggered via Vessel ID
+	err := h.service.CancelAllocationByVessel(c.Request.Context(), input.VesselID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
 
-    c.JSON(http.StatusOK, gin.H{"message": "Allocation reversed successfully"})
+	c.JSON(http.StatusOK, gin.H{"message": "Allocation reversed for vessel " + input.VesselID})
 }

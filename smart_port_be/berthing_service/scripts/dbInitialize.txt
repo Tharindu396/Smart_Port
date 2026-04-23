@@ -1,26 +1,25 @@
 // 1. Wipe everything to start clean
 MATCH (n) DETACH DELETE n;
 
-// 2. Create Berth Slots with Depth and Status properties
-CREATE (s1:Slot {id: 'S1', type: 'BERTH', depth: 18.0, isOccupied: false, status: 'AVAILABLE', reservedUntil: null}),
-       (s2:Slot {id: 'S2', type: 'BERTH', depth: 18.0, isOccupied: false, status: 'AVAILABLE', reservedUntil: null}),
-       (s3:Slot {id: 'S3', type: 'BERTH', depth: 15.0, isOccupied: false, status: 'AVAILABLE', reservedUntil: null}),
-       (s4:Slot {id: 'S4', type: 'BERTH', depth: 15.0, isOccupied: false, status: 'AVAILABLE', reservedUntil: null}),
-       (s5:Slot {id: 'S5', type: 'BERTH', depth: 12.0, isOccupied: false, status: 'AVAILABLE', reservedUntil: null});
+// 2. Create Berth Slots with Depth, Status, and reservedBy
+CREATE (s1:Slot {id: 'S1', type: 'BERTH', depth: 18.0, isOccupied: false, status: 'AVAILABLE', reservedBy: null, reservedUntil: null}),
+       (s2:Slot {id: 'S2', type: 'BERTH', depth: 18.0, isOccupied: false, status: 'AVAILABLE', reservedBy: null, reservedUntil: null}),
+       (s3:Slot {id: 'S3', type: 'BERTH', depth: 15.0, isOccupied: false, status: 'AVAILABLE', reservedBy: null, reservedUntil: null}),
+       (s4:Slot {id: 'S4', type: 'BERTH', depth: 15.0, isOccupied: false, status: 'AVAILABLE', reservedBy: null, reservedUntil: null}),
+       (s5:Slot {id: 'S5', type: 'BERTH', depth: 12.0, isOccupied: false, status: 'AVAILABLE', reservedBy: null, reservedUntil: null});
 
-// 3. Define the physical layout (Crucial for contiguous slot logic)
-// Make sure this matches the relationship name in your Go code (ADJACENT_TO)
+// 3. Define the physical layout
 MATCH (a:Slot {id: 'S1'}), (b:Slot {id: 'S2'}) CREATE (a)-[:ADJACENT_TO]->(b);
 MATCH (b:Slot {id: 'S2'}), (c:Slot {id: 'S3'}) CREATE (b)-[:ADJACENT_TO]->(c);
 MATCH (c:Slot {id: 'S3'}), (d:Slot {id: 'S4'}) CREATE (c)-[:ADJACENT_TO]->(d);
 MATCH (d:Slot {id: 'S4'}), (e:Slot {id: 'S5'}) CREATE (d)-[:ADJACENT_TO]->(e);
 
-// 4. Seed some Containers for FR-2.2 (Dependency Tracking)
+// 4. Seed Containers
 CREATE (c1:Container {id: 'CONT_BASE', type: '40ft', weight: 25.5}),
        (c2:Container {id: 'CONT_MID', type: '20ft', weight: 12.0}),
        (c3:Container {id: 'CONT_TOP', type: '20ft', weight: 10.2});
 
-// 5. Build the Stack relationship
+// 5. Build the Stack
 MATCH (base:Container {id: 'CONT_BASE'}), (mid:Container {id: 'CONT_MID'}), (top:Container {id: 'CONT_TOP'})
 CREATE (top)-[:STACKED_ON]->(mid),
        (mid)-[:STACKED_ON]->(base);

@@ -18,6 +18,8 @@ type Repository interface {
 	ReserveSlots(ctx context.Context, slotIds []string, expiryMinutes int) error
 	ConfirmReservation(ctx context.Context, slotIds []string) error
 	CancelReservation(ctx context.Context, slotIds []string) error
+	ConfirmReservationByVessel(ctx context.Context, vesselID string) error
+    ReleaseSlotsByVessel(ctx context.Context, vesselID string) error
 }
 
 // Neo4jRepository is the actual implementation
@@ -202,4 +204,33 @@ func (r *Neo4jRepository) CancelReservation(ctx context.Context, slotIds []strin
     `
     _, err := session.Run(ctx, query, map[string]interface{}{"ids": slotIds})
     return err
+}
+
+func (r *Neo4jRepository) ConfirmReservationByVessel(ctx context.Context, vesselID string) error {
+	session := r.Driver.NewSession(ctx, neo4j.SessionConfig{AccessMode: neo4j.AccessModeWrite})
+	defer session.Close(ctx)
+
+	query := `
+		MATCH (s:Slot {reservedBy: $vesselID, status: 'PENDING_PAYMENT'})
+		SET s.status = 'OCCUPIED', 
+		    s.isOccupied = true,
+		    s.reservedUntil = null
+	`
+	_, err := session.Run(ctx, query, map[string]interface{}{"vesselID": vesselID})
+	return err
+}
+
+func (r *Neo4jRepository) ReleaseSlotsByVessel(ctx context.Context, vesselID string) error {
+	session := r.Driver.NewSession(ctx, neo4j.SessionConfig{AccessMode: neo4j.AccessModeWrite})
+	defer session.Close(ctx)
+
+	query := `
+		MATCH (s:Slot {reservedBy: $vesselID})
+		SET s.status = 'AVAILABLE', 
+		    s.isOccupied = false, 
+		    s.reservedBy = null, 
+		    s.reservedUntil = null
+	`
+	_, err := session.Run(ctx, query, map[string]interface{}{"vesselID": vesselID})
+	return err
 }
