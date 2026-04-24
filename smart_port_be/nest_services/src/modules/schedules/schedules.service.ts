@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Schedule } from './schedules.entity';
+import { Schedule } from '../../core/enitites/schedules.entity';
 
 @Injectable()
 export class SchedulesService {
