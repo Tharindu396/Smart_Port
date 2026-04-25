@@ -5,17 +5,24 @@ type AuthShellProps = {
 };
 
 import { Card, CardContent, CardHeader } from "@heroui/react";
+import Image from "next/image";
+import logo from "@/app/components/images/logo.png";
 
 export default function AuthShell({ title, subtitle, children }: AuthShellProps) {
   return (
     <div className="min-h-screen bg-zinc-100 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100">
-      <header className="mx-auto flex w-full max-w-4xl justify-center px-6 pt-8">
-        <div className="w-full max-w-md rounded-md border border-dashed border-zinc-400 px-4 py-3 text-center text-sm text-zinc-600 dark:border-zinc-600 dark:text-zinc-300">
-          Company Logo Placeholder
+      <header className="mx-auto w-full max-w-4xl justify-center px-6 pt-8">
+        <div className="flex items-center justify-center gap-4">
+          <Image
+            src={logo}
+            alt="Company logo"
+            className="h-20 w-auto object-contain border-2 border-zinc-300 rounded-lg p-1 bg-white dark:border-zinc-700 dark:bg-black"
+            priority
+          />
         </div>
       </header>
 
-      <main className="mx-auto flex min-h-[calc(100vh-84px)] w-full items-center justify-center px-6 py-8">
+      <main className="mx-auto flex min-h-[calc(100vh-84px)] w-full items-center justify-center px-6 py-4">
         <Card className="w-full max-w-md rounded-2xl border border-zinc-300 bg-white dark:border-zinc-700 dark:bg-black">
           <CardHeader className="flex flex-col items-start gap-1 p-6 pb-0">
             <h1 className="text-2xl font-semibold">{title}</h1>

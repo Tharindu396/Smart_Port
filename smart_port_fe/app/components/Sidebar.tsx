@@ -1,11 +1,13 @@
 "use client";
 
 import React from "react";
+import Image from "next/image";
 import { Button, Chip, cn } from "@heroui/react";
 import { PanelLeftClose, PanelLeftOpen, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { navSections, siteConfig } from "@/app/config/dashboard.config";
 import { SidebarState } from "@/app/hooks/useDashboard";
+import logo from "@/app/components/images/logo.png";
 
 interface SidebarProps {
   state: SidebarState;
@@ -43,7 +45,12 @@ export function Sidebar({
       >
         <div className="flex items-center gap-3 overflow-hidden">
           <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary text-primary-foreground font-bold text-lg shrink-0">
-            {siteConfig.logo}
+            <Image
+              src={logo}
+              alt={siteConfig.name}
+              width={32}
+              height={32}
+            />
           </div>
           {isExpanded && (
             <div className="flex flex-col overflow-hidden">

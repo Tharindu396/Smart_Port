@@ -13,6 +13,7 @@ import {
   Inbox,
   Ship,
 } from "lucide-react";
+import logo from "@/app/components/images/logo.png";
 
 export type NavItem = {
   key: string;
@@ -30,7 +31,7 @@ export type NavSection = {
 
 export const siteConfig = {
   name: "Smart Port Dashboard",
-  logo: "⬡",
+  logo: "@/app/components/images/logo.png",
   version: "1.1.0",
 };
 
