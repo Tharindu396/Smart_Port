@@ -12,7 +12,9 @@ import {
   Zap,
   Inbox,
   Ship,
+  ShipWheel,
 } from "lucide-react";
+import logo from "@/app/components/images/logo.png";
 
 export type NavItem = {
   key: string;
@@ -30,7 +32,7 @@ export type NavSection = {
 
 export const siteConfig = {
   name: "Smart Port Dashboard",
-  logo: "⬡",
+  logo: "@/app/components/images/logo.png",
   version: "1.1.0",
 };
 
@@ -61,6 +63,13 @@ export const navSections: NavSection[] = [
         icon: Ship,
         badge: "New",
       },
+      {
+        key: "berths",
+        label: "Berths",
+        href: "/berth",
+        icon: ShipWheel,
+        badge: "New",
+      }
       // {
       //   key: "content",
       //   label: "Content",
