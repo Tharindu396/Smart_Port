@@ -5,7 +5,7 @@ import type { UserRole, UserRecord, UserCreateRequest, UserUpdateRequest } from 
 
 const baseUrl = resolveApiBaseUrl("nestServicesBaseUrl");
 
-function authHeaders() {
+function authHeaders() : HeadersInit {
   const token = getAccessToken();
   return token ? { Authorization: `Bearer ${token}` } : {};
 }

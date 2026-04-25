@@ -3,7 +3,7 @@
 import { DashboardLayout } from "@/app/components/DashboardLayout";
 import { allAssignableRoles, ApiError, type UserCreateRequest, type UserRecord, type UserRole, usersApi } from "@/lib/api";
 import { getSessionUser } from "@/lib/auth/session";
-import { Button, Card, Chip, Input } from "@heroui/react";
+import { Button, Card, Chip, Input, Label, TextField } from "@heroui/react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
 type EditableUser = {
@@ -209,54 +209,106 @@ export default function UsersPage() {
                   <Card.Description>Use this form for internal roles management.</Card.Description>
                 </Card.Header>
                 <Card.Content>
-                  <form className="space-y-3" onSubmit={onCreateSubmit}>
-                    <Input
-                      label="Full Name"
-                      value={createForm.name}
-                      onChange={(event) => setCreateForm((prev) => ({ ...prev, name: event.target.value }))}
-                      isRequired
-                    />
-                    <Input
-                      label="Email"
-                      type="email"
-                      value={createForm.email}
-                      onChange={(event) => setCreateForm((prev) => ({ ...prev, email: event.target.value }))}
-                      isRequired
-                    />
-                    <div className="space-y-1">
-                      <label htmlFor="create-role" className="text-sm font-medium">
-                        Role
-                      </label>
-                      <select
-                        id="create-role"
-                        className="w-full rounded-md border border-divider bg-content1 px-3 py-2 text-sm"
-                        value={createForm.role}
+                 <form className="space-y-4" aria-label="create user form" onSubmit={onCreateSubmit}>
+                  {/* Full Name */}
+                  <div className="space-y-1">
+                    <TextField isRequired>
+                      <Label htmlFor="create-name" className="block text-sm font-medium">
+                        Full Name
+                      </Label>
+                      <Input
+                        id="create-name"
+                        type="text"
+                        value={createForm.name}
                         onChange={(event) =>
-                          setCreateForm((prev) => ({ ...prev, role: event.target.value as UserRole }))
+                          setCreateForm((prev) => ({ ...prev, name: event.target.value }))
                         }
-                      >
-                        {allAssignableRoles.filter((role) => role !== "shipping_agent").map((role) => (
+                        placeholder="Enter full name"
+                        className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none transition focus:border-zinc-500 dark:border-zinc-700"
+                      />
+                    </TextField>
+                  </div>
+
+                  {/* Email */}
+                  <div className="space-y-1">
+                    <TextField isRequired>
+                      <Label htmlFor="create-email" className="block text-sm font-medium">
+                        Email
+                      </Label>
+                      <Input
+                        id="create-email"
+                        type="email"
+                        value={createForm.email}
+                        onChange={(event) =>
+                          setCreateForm((prev) => ({ ...prev, email: event.target.value }))
+                        }
+                        placeholder="you@company.com"
+                        className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none transition focus:border-zinc-500 dark:border-zinc-700"
+                      />
+                    </TextField>
+                  </div>
+
+                  {/* Role */}
+                  <div className="space-y-1">
+                    <Label htmlFor="create-role" className="block text-sm font-medium">
+                      Role
+                    </Label>
+                    <select
+                      id="create-role"
+                      className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none transition focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-900"
+                      value={createForm.role}
+                      onChange={(event) =>
+                        setCreateForm((prev) => ({
+                          ...prev,
+                          role: event.target.value as UserRole,
+                        }))
+                      }
+                    >
+                      {allAssignableRoles
+                        .filter((role) => role !== "shipping_agent")
+                        .map((role) => (
                           <option key={role} value={role}>
                             {formatRole(role)}
                           </option>
                         ))}
-                      </select>
-                    </div>
-                    <Input
-                      label="Password"
-                      type="password"
-                      value={createForm.password}
-                      onChange={(event) => setCreateForm((prev) => ({ ...prev, password: event.target.value }))}
-                      minLength={6}
-                      isRequired
-                    />
+                    </select>
+                  </div>
 
-                    {createMessage && <p className="text-xs text-success">{createMessage}</p>}
+                  {/* Password */}
+                  <div className="space-y-1">
+                    <TextField isRequired>
+                      <Label htmlFor="create-password" className="block text-sm font-medium">
+                        Password
+                      </Label>
+                      <Input
+                        id="create-password"
+                        type="password"
+                        value={createForm.password}
+                        onChange={(event) =>
+                          setCreateForm((prev) => ({
+                            ...prev,
+                            password: event.target.value,
+                          }))
+                        }
+                        placeholder="Create a password"
+                        minLength={6}
+                        className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none transition focus:border-zinc-500 dark:border-zinc-700"
+                      />
+                    </TextField>
+                  </div>
 
-                    <Button type="submit" color="primary" isLoading={createLoading}>
-                      Create User
-                    </Button>
-                  </form>
+                  {/* Message */}
+                  {createMessage && <p className="text-sm text-success">{createMessage}</p>}
+
+                  {/* Submit */}
+                  <Button
+                    type="submit"
+                    className="w-full rounded-md border border-zinc-900 bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-800 dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+                    isPending={createLoading}
+                  >
+                    Create User
+                  </Button>
+                </form>
                 </Card.Content>
               </Card>
 
@@ -267,14 +319,15 @@ export default function UsersPage() {
                 </Card.Header>
                 <Card.Content>
                   {editForm ? (
-                    <form className="space-y-3" onSubmit={onUpdateSubmit}>
+                    <form className="space-y-4" aria-label="update user form" onSubmit={onUpdateSubmit}>
+                      {/* Select User */}
                       <div className="space-y-1">
-                        <label htmlFor="edit-user-select" className="text-sm font-medium">
+                        <Label htmlFor="edit-user-select" className="block text-sm font-medium">
                           Select User
-                        </label>
+                        </Label>
                         <select
                           id="edit-user-select"
-                          className="w-full rounded-md border border-divider bg-content1 px-3 py-2 text-sm"
+                          className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none transition focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-900"
                           value={editForm.id}
                           onChange={(event) => {
                             const next = users.find((item) => item.id === Number(event.target.value));
@@ -289,29 +342,61 @@ export default function UsersPage() {
                         </select>
                       </div>
 
-                      <Input
-                        label="Full Name"
-                        value={editForm.name}
-                        onChange={(event) => setEditForm((prev) => (prev ? { ...prev, name: event.target.value } : prev))}
-                        isRequired
-                      />
-                      <Input
-                        label="Email"
-                        type="email"
-                        value={editForm.email}
-                        onChange={(event) => setEditForm((prev) => (prev ? { ...prev, email: event.target.value } : prev))}
-                        isRequired
-                      />
+                      {/* Full Name */}
                       <div className="space-y-1">
-                        <label htmlFor="edit-role" className="text-sm font-medium">
+                        <TextField isRequired>
+                          <Label htmlFor="edit-name" className="block text-sm font-medium">
+                            Full Name
+                          </Label>
+                          <Input
+                            id="edit-name"
+                            type="text"
+                            value={editForm.name}
+                            onChange={(event) =>
+                              setEditForm((prev) =>
+                                prev ? { ...prev, name: event.target.value } : prev
+                              )
+                            }
+                            placeholder="Enter full name"
+                            className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none transition focus:border-zinc-500 dark:border-zinc-700"
+                          />
+                        </TextField>
+                      </div>
+
+                      {/* Email */}
+                      <div className="space-y-1">
+                        <TextField isRequired>
+                          <Label htmlFor="edit-email" className="block text-sm font-medium">
+                            Email
+                          </Label>
+                          <Input
+                            id="edit-email"
+                            type="email"
+                            value={editForm.email}
+                            onChange={(event) =>
+                              setEditForm((prev) =>
+                                prev ? { ...prev, email: event.target.value } : prev
+                              )
+                            }
+                            placeholder="you@company.com"
+                            className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none transition focus:border-zinc-500 dark:border-zinc-700"
+                          />
+                        </TextField>
+                      </div>
+
+                      {/* Role */}
+                      <div className="space-y-1">
+                        <Label htmlFor="edit-role" className="block text-sm font-medium">
                           Role
-                        </label>
+                        </Label>
                         <select
                           id="edit-role"
-                          className="w-full rounded-md border border-divider bg-content1 px-3 py-2 text-sm"
+                          className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none transition focus:border-zinc-500 dark:border-zinc-700 dark:bg-zinc-900"
                           value={editForm.role}
                           onChange={(event) =>
-                            setEditForm((prev) => (prev ? { ...prev, role: event.target.value as UserRole } : prev))
+                            setEditForm((prev) =>
+                              prev ? { ...prev, role: event.target.value as UserRole } : prev
+                            )
                           }
                         >
                           {allAssignableRoles.map((role) => (
@@ -321,19 +406,38 @@ export default function UsersPage() {
                           ))}
                         </select>
                       </div>
-                      <Input
-                        label="Reset Password (Optional)"
-                        type="password"
-                        value={editForm.password}
-                        onChange={(event) =>
-                          setEditForm((prev) => (prev ? { ...prev, password: event.target.value } : prev))
-                        }
-                        minLength={6}
-                      />
 
-                      {updateMessage && <p className="text-xs text-success">{updateMessage}</p>}
+                      {/* Password */}
+                      <div className="space-y-1">
+                        <TextField>
+                          <Label htmlFor="edit-password" className="block text-sm font-medium">
+                            Reset Password (Optional)
+                          </Label>
+                          <Input
+                            id="edit-password"
+                            type="password"
+                            value={editForm.password}
+                            onChange={(event) =>
+                              setEditForm((prev) =>
+                                prev ? { ...prev, password: event.target.value } : prev
+                              )
+                            }
+                            placeholder="Enter new password (optional)"
+                            minLength={6}
+                            className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none transition focus:border-zinc-500 dark:border-zinc-700"
+                          />
+                        </TextField>
+                      </div>
 
-                      <Button type="submit" color="primary" isLoading={updateLoading}>
+                      {/* Message */}
+                      {updateMessage && <p className="text-sm text-success">{updateMessage}</p>}
+
+                      {/* Submit */}
+                      <Button
+                        type="submit"
+                        className="w-full rounded-md border border-zinc-900 bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-800 dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+                        isPending={updateLoading}
+                      >
                         Update User
                       </Button>
                     </form>
@@ -350,7 +454,7 @@ export default function UsersPage() {
                   <Card.Title>Users Directory</Card.Title>
                   <Card.Description>Current accounts and role assignment.</Card.Description>
                 </div>
-                <Button size="sm" variant="secondary" onPress={loadUsers} isLoading={loading}>
+                <Button size="sm" variant="secondary" onPress={loadUsers} isPending={loading}>
                   Refresh
                 </Button>
               </Card.Header>
@@ -366,7 +470,7 @@ export default function UsersPage() {
                       <p className="font-semibold">{user.name}</p>
                       <p className="text-xs text-default-500">{user.email}</p>
                       <div className="flex items-center gap-2">
-                        <Chip size="sm" variant="soft" color={user.role === "admin" ? "warning" : "primary"}>
+                        <Chip size="sm" variant="soft" color={user.role === "admin" ? "warning" : "accent"}>
                           {formatRole(user.role)}
                         </Chip>
                         <span className="text-xs text-default-500">ID: {user.id}</span>
