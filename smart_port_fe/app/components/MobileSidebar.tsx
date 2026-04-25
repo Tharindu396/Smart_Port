@@ -1,10 +1,12 @@
 "use client";
 
 import React from "react";
-import { Button, Chip, cn } from "@heroui/react";
+import { Avatar, Button, Chip, cn } from "@heroui/react";
 import { X, ChevronRight } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import { navSections, siteConfig } from "@/app/config/dashboard.config";
+import logo from "@/app/components/images/logo.png";
 
 interface MobileSidebarProps {
   isOpen: boolean;
@@ -46,7 +48,12 @@ export function MobileSidebar({
         <div className="flex items-center justify-between h-16 px-4 border-b border-divider shrink-0">
           <div className="flex items-center gap-3">
             <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-primary text-primary-foreground font-bold text-lg">
-              {siteConfig.logo}
+                <Image
+                src={logo}
+                alt={siteConfig.name}
+                width={32}
+                height={32}
+                />
             </div>
             <div>
               <p className="text-sm font-semibold text-foreground leading-tight">{siteConfig.name}</p>
@@ -116,9 +123,13 @@ export function MobileSidebar({
         {/* Footer */}
         <div className="shrink-0 border-t border-divider p-4">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white text-xs font-bold">
-              JD
-            </div>
+            <Avatar size="sm">
+                <Avatar.Image
+                  alt={"Smart Port User"}
+                  src="https://heroui-assets.nyc3.cdn.digitaloceanspaces.com/avatars/orange.jpg"
+                />
+                <Avatar.Fallback delayMs={600}>JD</Avatar.Fallback>
+              </Avatar>
             <div className="flex-1 overflow-hidden">
               <p className="text-sm font-medium truncate">John Doe</p>
               <p className="text-xs text-default-400 truncate">john@acme.com</p>

@@ -65,6 +65,18 @@ export function Topbar({
       router.push("/login");
       router.refresh();
     }
+
+    else if (String(key) === "dashboard") {
+      router.push("/dashboard");
+    }
+
+    else if (String(key) === "profile") {
+      router.push("/profile");
+    }
+
+    else if (String(key) === "settings") {
+      router.push("/settings");
+    }
   };
 
   return (
@@ -81,7 +93,7 @@ export function Topbar({
           {/* Mobile hamburger */}
           <Button
             isIconOnly
-            variant="primary"
+            variant="tertiary"
             size="sm"
             onPress={onMobileMenuToggle}
             aria-label="Open navigation menu"
@@ -114,7 +126,7 @@ export function Topbar({
           <Chip
             size="sm"
             variant="soft"
-            color={sessionUser?.role === "admin" ? "warning" : "primary"}
+            color={sessionUser?.role === "admin" ? "warning" : "accent"}
             className="hidden md:inline-flex"
           >
             {roleLabel}

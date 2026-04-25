@@ -2,7 +2,7 @@
 
 import React from "react";
 import Image from "next/image";
-import { Button, Chip, cn } from "@heroui/react";
+import { Avatar, Button, Chip, cn } from "@heroui/react";
 import { PanelLeftClose, PanelLeftOpen, ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { navSections, siteConfig } from "@/app/config/dashboard.config";
@@ -186,19 +186,22 @@ export function Sidebar({
       <div className={cn("shrink-0 border-t border-divider p-3", !isExpanded && "flex justify-center")}>
         {isExpanded ? (
           <div className="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-default-100 cursor-pointer transition-colors">
-            <div className="w-8 h-8 rounded-full bg-linear-to-br from-primary to-secondary shrink-0 flex items-center justify-center text-white text-xs font-bold">
-              {initials}
-            </div>
+            <Avatar size="sm">
+              <Avatar.Image
+                alt={sessionUser?.name ?? "Smart Port User"}
+                src="https://heroui-assets.nyc3.cdn.digitaloceanspaces.com/avatars/orange.jpg"
+              />
+              <Avatar.Fallback delayMs={600}>{initials}</Avatar.Fallback>
+            </Avatar>
             <div className="flex-1 overflow-hidden">
               <p className="text-sm font-medium text-foreground truncate leading-tight">{sessionUser?.name ?? "Guest User"}</p>
               <p className="text-xs text-default-400 truncate">{sessionUser?.email ?? "guest@smartport"}</p>
-              <div className="mt-1">
+            </div>
+            <div className="mt-1">
                 <Chip size="sm" variant="soft" color={sessionUser?.role === "admin" ? "warning" : "accent"}>
                   {roleLabel}
                 </Chip>
               </div>
-            </div>
-            <ChevronRight size={14} className="text-default-400 shrink-0" />
           </div>
         ) : (
           <div className="w-8 h-8 rounded-full bg-linear-to-br from-primary to-secondary cursor-pointer flex items-center justify-center text-white text-xs font-bold">
