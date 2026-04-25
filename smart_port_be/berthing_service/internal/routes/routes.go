@@ -1,8 +1,8 @@
 package routes
 
 import (
-	"smartport/berthing-service/internal/handlers"
 	"github.com/gin-gonic/gin"
+	"smartport/berthing-service/internal/handlers"
 )
 
 func SetupRoutes(r *gin.Engine, handler *handlers.AllocationHandler) {
@@ -10,7 +10,9 @@ func SetupRoutes(r *gin.Engine, handler *handlers.AllocationHandler) {
 	{
 		// --- FR-2.1: Berthing Endpoints ---
 		api.POST("/allocate-berth", handler.PostBerthAllocation)
-		
+		api.GET("/berths/slots", handler.GetSlotsOverview)
+		api.GET("/allocations/history", handler.GetAllocationHistory)
+
 		// --- FR-2.2: Container Endpoints ---
 		api.GET("/container/:id/dependency", handler.GetContainerDependency)
 
@@ -21,8 +23,8 @@ func SetupRoutes(r *gin.Engine, handler *handlers.AllocationHandler) {
 		// --- Infrastructure Management (Admin/Berth Planner) ---
 		// Use PUT to update existing slot limitations (e.g., dredging)
 		api.PUT("/admin/slots/:id", handler.UpdateSlot)
-        
-        // You can also add the CreateSlot here if you've added the handler for it
-        // api.POST("/admin/slots", handler.CreateSlot) 
+
+		// You can also add the CreateSlot here if you've added the handler for it
+		// api.POST("/admin/slots", handler.CreateSlot)
 	}
 }
