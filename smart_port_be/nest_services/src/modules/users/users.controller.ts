@@ -14,16 +14,16 @@ import {
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { RegisterUserDto } from './dto/register-user.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RequirePermission } from '../../common/decorators/permissions.decorator';
 import { Role } from '../../common/enums/role.enum';
 
 @Controller('users')
-@UseGuards(JwtAuthGuard)
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
-
+  @UseGuards(JwtAuthGuard)
   @Post('create')
   @HttpCode(HttpStatus.CREATED)
   @Roles(Role.Admin)
@@ -31,12 +31,14 @@ export class UsersController {
   create(@Body() createUserDto: CreateUserDto) {
     return this.usersService.create(createUserDto);
   }
+  
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
-  register(@Body() createUserDto: CreateUserDto) {
-    return this.usersService.register(createUserDto);
+  register(@Body() registerUserDto: RegisterUserDto) {
+    return this.usersService.register(registerUserDto);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get()
   @Roles(Role.Admin)
   @RequirePermission('view_users_info')
@@ -44,6 +46,7 @@ export class UsersController {
     return this.usersService.findAll();
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get(':id')
   @Roles(Role.Admin)
   @RequirePermission('view_user_info')
@@ -51,6 +54,7 @@ export class UsersController {
     return this.usersService.findOne(id);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Patch(':id')
   @Roles(Role.Admin)
   @RequirePermission('create_user')
@@ -61,6 +65,7 @@ export class UsersController {
     return this.usersService.update(id, updateUserDto);
   }
 
+  @UseGuards(JwtAuthGuard)
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   @Roles(Role.Admin)

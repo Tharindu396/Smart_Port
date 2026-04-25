@@ -6,6 +6,7 @@ import { User } from '../../core/enitites/user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { Role } from 'src/common/enums/role.enum';
+import { RegisterUserDto } from './dto/register-user.dto';
 
 @Injectable()
 export class UsersService {
@@ -110,11 +111,11 @@ export class UsersService {
   async validatePassword(plainPassword: string, hashedPassword: string): Promise<boolean> {
     return bcrypt.compare(plainPassword, hashedPassword);
   }
-  async register(createUserDto: CreateUserDto): Promise<User> {
+  async register(registerUserDto: RegisterUserDto): Promise<User> {
     const saltRounds = 10;
-    const hashedPassword = await bcrypt.hash(createUserDto.password, saltRounds);
+    const hashedPassword = await bcrypt.hash(registerUserDto.password, saltRounds);
         const user = this.userRepository.create({
-      ...createUserDto,
+      ...registerUserDto,
       password: hashedPassword,
       role: Role.SHIPPING_AGENT, 
     });
