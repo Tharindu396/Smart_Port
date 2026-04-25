@@ -5,6 +5,7 @@ import * as bcrypt from 'bcrypt';
 import { User } from '../../core/enitites/user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { Role } from 'src/common/enums/role.enum';
 
 @Injectable()
 export class UsersService {
@@ -59,6 +60,12 @@ export class UsersService {
     });
   }
 
+  async countByRole(role: Role): Promise<number> {
+    return this.userRepository.count({
+      where: { role },
+    });
+  }
+
   async update(id: number, updateUserDto: UpdateUserDto): Promise<User> {
     const user = await this.userRepository.findOne({ where: { id } });
 
@@ -102,5 +109,16 @@ export class UsersService {
 
   async validatePassword(plainPassword: string, hashedPassword: string): Promise<boolean> {
     return bcrypt.compare(plainPassword, hashedPassword);
+  }
+  async register(createUserDto: CreateUserDto): Promise<User> {
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(createUserDto.password, saltRounds);
+        const user = this.userRepository.create({
+      ...createUserDto,
+      password: hashedPassword,
+      role: Role.SHIPPING_AGENT, 
+    });
+
+    return this.userRepository.save(user);
   }
 }
