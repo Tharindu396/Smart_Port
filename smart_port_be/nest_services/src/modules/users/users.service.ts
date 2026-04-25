@@ -114,7 +114,7 @@ export class UsersService {
   async register(registerUserDto: RegisterUserDto): Promise<User> {
     const saltRounds = 10;
     const hashedPassword = await bcrypt.hash(registerUserDto.password, saltRounds);
-        const user = this.userRepository.create({
+    const user = this.userRepository.create({
       ...registerUserDto,
       password: hashedPassword,
       role: Role.SHIPPING_AGENT, 
