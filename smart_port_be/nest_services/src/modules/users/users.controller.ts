@@ -24,31 +24,36 @@ import { Role } from '../../common/enums/role.enum';
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
-  @Post()
+  @Post('create')
   @HttpCode(HttpStatus.CREATED)
-  @Roles(Role.BERTH_PLANNER, Role.FINANCE_OFFICER)
-  @RequirePermission('override_berth_allocation')
+  @Roles(Role.Admin)
+  @RequirePermission('create_user')
   create(@Body() createUserDto: CreateUserDto) {
     return this.usersService.create(createUserDto);
   }
+  @Post('register')
+  @HttpCode(HttpStatus.CREATED)
+  register(@Body() createUserDto: CreateUserDto) {
+    return this.usersService.register(createUserDto);
+  }
 
   @Get()
-  @Roles(Role.BERTH_PLANNER, Role.FINANCE_OFFICER)
-  @RequirePermission('view_vessel_info')
+  @Roles(Role.Admin)
+  @RequirePermission('view_users_info')
   findAll() {
     return this.usersService.findAll();
   }
 
   @Get(':id')
-  @Roles(Role.BERTH_PLANNER, Role.FINANCE_OFFICER)
-  @RequirePermission('view_vessel_info')
+  @Roles(Role.Admin)
+  @RequirePermission('view_user_info')
   findOne(@Param('id', ParseIntPipe) id: number) {
     return this.usersService.findOne(id);
   }
 
   @Patch(':id')
-  @Roles(Role.BERTH_PLANNER, Role.FINANCE_OFFICER)
-  @RequirePermission('override_berth_allocation')
+  @Roles(Role.Admin)
+  @RequirePermission('create_user')
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateUserDto: UpdateUserDto,
@@ -58,8 +63,8 @@ export class UsersController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @Roles(Role.FINANCE_OFFICER)
-  @RequirePermission('override_berth_allocation')
+  @Roles(Role.Admin)
+  @RequirePermission('delete_user')
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.usersService.remove(id);
   }

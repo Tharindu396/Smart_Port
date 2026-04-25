@@ -20,7 +20,11 @@ export type Permission =
   | 'confirm_loading'
   | 'confirm_unloading'
   | 'update_yard_status'
-  | 'view_yard_status';
+  | 'view_yard_status'
+  | 'create_user'
+  | 'delete_user'
+  | 'view_user_info'
+  | 'view_users_info';
 
 export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   [Role.SHIPPING_AGENT]: [
@@ -60,6 +64,15 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     'track_all_vessels',
     'view_vessel_info',
   ],
+  [Role.Admin]: [
+    'request_berth',
+    'approve_berth_request',
+    'create_user',
+    'delete_user',
+    'view_user_info',
+    'view_users_info'
+  ]
+
 };
 
 export function hasPermission(role: Role, permission: Permission): boolean {
