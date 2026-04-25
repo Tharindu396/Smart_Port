@@ -1,11 +1,12 @@
 package handlers
 
 import (
-	"github.com/gin-gonic/gin" // We use Gin for fast, professional routing
 	"net/http"
 	"smartport/berthing-service/internal/allocation"
 	"smartport/berthing-service/internal/models"
 	"strconv"
+
+	"github.com/gin-gonic/gin" // We use Gin for fast, professional routing
 )
 
 type AllocationHandler struct {

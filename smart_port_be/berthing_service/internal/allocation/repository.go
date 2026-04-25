@@ -2,8 +2,9 @@ package allocation
 
 import (
 	"context"
-	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
 	"smartport/berthing-service/internal/models"
+
+	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
 )
 
 // Repository interface defines what our database can do
