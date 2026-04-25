@@ -12,6 +12,7 @@ import {
   Zap,
   Inbox,
   Ship,
+  ShipWheel,
 } from "lucide-react";
 import logo from "@/app/components/images/logo.png";
 
@@ -62,6 +63,13 @@ export const navSections: NavSection[] = [
         icon: Ship,
         badge: "New",
       },
+      {
+        key: "berths",
+        label: "Berths",
+        href: "/berth",
+        icon: ShipWheel,
+        badge: "New",
+      }
       // {
       //   key: "content",
       //   label: "Content",
