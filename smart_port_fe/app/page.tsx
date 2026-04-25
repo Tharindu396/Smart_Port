@@ -4,6 +4,7 @@ import Link from "next/link";
 
 import logo from "@/app/components/images/logo-bgremoved.png";
 import background from "@/app/components/images/background.png";
+import Footer from "./components/footer";
 
 export default function Home() {
   return (
@@ -184,6 +185,7 @@ export default function Home() {
       </section>
 
       {/* ── Rest of page (light background resumes here) ── */}
+      <Footer />
     </div>
   );
 }
