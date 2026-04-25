@@ -19,7 +19,9 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { RequirePermission } from '../../common/decorators/permissions.decorator';
 import { Role } from '../../common/enums/role.enum';
+import { Public } from 'src/common/decorators/public.decorator';
 
+@UseGuards(JwtAuthGuard)
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
@@ -34,11 +36,12 @@ export class UsersController {
   
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
+  @Public()
   register(@Body() registerUserDto: RegisterUserDto) {
     return this.usersService.register(registerUserDto);
   }
 
-  @UseGuards(JwtAuthGuard)
+
   @Get()
   @Roles(Role.Admin)
   @RequirePermission('view_users_info')
@@ -46,7 +49,6 @@ export class UsersController {
     return this.usersService.findAll();
   }
 
-  @UseGuards(JwtAuthGuard)
   @Get(':id')
   @Roles(Role.Admin)
   @RequirePermission('view_user_info')
@@ -54,7 +56,6 @@ export class UsersController {
     return this.usersService.findOne(id);
   }
 
-  @UseGuards(JwtAuthGuard)
   @Patch(':id')
   @Roles(Role.Admin)
   @RequirePermission('create_user')
