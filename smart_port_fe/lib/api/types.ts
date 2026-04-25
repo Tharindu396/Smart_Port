@@ -28,7 +28,7 @@ export interface BerthAllocationView {
   progress: number;
 }
 
-export type UserRole = "shipping_agent" | "berth_planner" | "finance_officer" | "operations_staff";
+export type UserRole = "shipping_agent" | "berth_planner" | "finance_officer" | "operations_staff" | "admin";
 
 export interface LoginRequest {
   email: string;
@@ -50,7 +50,6 @@ export interface LoginResponse {
 export interface RegisterRequest {
   name: string;
   email: string;
-  role: UserRole;
   password: string;
 }
 
@@ -60,4 +59,26 @@ export interface RegisterResponse {
   email: string;
   role: UserRole;
   createdAt?: string;
+}
+
+export interface UserRecord {
+  id: number;
+  name: string;
+  email: string;
+  role: UserRole;
+  createdAt?: string;
+}
+
+export interface UserCreateRequest {
+  name: string;
+  email: string;
+  role: UserRole;
+  password: string;
+}
+
+export interface UserUpdateRequest {
+  name?: string;
+  email?: string;
+  role?: UserRole;
+  password?: string;
 }

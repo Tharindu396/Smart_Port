@@ -5,21 +5,13 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import AuthShell from "../components/auth-shell";
 import { Button, Input, Label, TextField } from "@heroui/react";
-import { ApiError, authApi, type UserRole } from "@/lib/api";
-
-const roleOptions: Array<{ label: string; value: UserRole }> = [
-  { label: "Shipping Agent", value: "shipping_agent" },
-  { label: "Berth Planner", value: "berth_planner" },
-  { label: "Finance Officer", value: "finance_officer" },
-  { label: "Operations Staff", value: "operations_staff" },
-];
+import { ApiError, authApi } from "@/lib/api";
 
 export default function RegisterPage() {
   const router = useRouter();
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<UserRole>("shipping_agent");
   const [notice, setNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -35,7 +27,6 @@ export default function RegisterPage() {
         name: fullName,
         email,
         password,
-        role,
       });
       setNotice("Registration successful. Redirecting to login...");
       router.push("/login");
@@ -92,22 +83,10 @@ export default function RegisterPage() {
         </div>
 
         <div className="space-y-1">
-          <label htmlFor="role" className="block text-sm font-medium">
-            Role
-          </label>
-          <select
-            id="role"
-            name="role"
-            value={role}
-            onChange={(event) => setRole(event.target.value as UserRole)}
-            className="w-full rounded-md border border-zinc-300 bg-transparent px-3 py-2 text-sm outline-none transition focus:border-zinc-500 dark:border-zinc-700"
-          >
-            {roleOptions.map((option) => (
-              <option key={option.value} value={option.value} className="text-black">
-                {option.label}
-              </option>
-            ))}
-          </select>
+          <p className="text-xs text-default-500">
+            Accounts created from this page are registered as <span className="font-semibold">Shipping Agent</span>.
+            Admin-created roles are managed from the Users dashboard.
+          </p>
         </div>
 
         <div className="space-y-1">

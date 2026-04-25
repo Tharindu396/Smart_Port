@@ -52,6 +52,7 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     'set_tariff_rates',
     'verify_manual_payments',
     'approve_penalty_waivers',
+    'override_berth_allocation',
     'view_vessel_info',
     'view_manifest',
   ],

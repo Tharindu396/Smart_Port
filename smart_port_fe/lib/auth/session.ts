@@ -1,3 +1,5 @@
+import type { UserRole } from "@/lib/api/types";
+
 const ACCESS_TOKEN_KEY = "smartport:access_token";
 const USER_KEY = "smartport:user";
 
@@ -5,7 +7,7 @@ export interface SessionUser {
   id: number;
   name: string;
   email: string;
-  role: string;
+  role: UserRole;
 }
 
 export function storeSession(accessToken: string, user: SessionUser): void {

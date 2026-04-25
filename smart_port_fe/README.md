@@ -36,9 +36,12 @@ Berth page mapping:
 Auth mapping (Nest backend):
 
 - `POST /auth/login` -> `authApi.login({ email, password })`
-- `POST /users` -> `authApi.register({ name, email, role, password })`
+- `POST /users/register` -> `authApi.register({ name, email, password })` (shipping_agent only)
+- `GET /users` -> `usersApi.getAll()` (admin)
+- `POST /users/create` -> `usersApi.create({ name, email, role, password })` (admin)
+- `PATCH /users/:id` -> `usersApi.update(id, payload)` (admin)
 - Login page stores `access_token` and user profile in localStorage through `lib/auth/session.ts`
-- Register page now submits directly to users create endpoint for signup.
+- Register page creates shipping_agent users only.
 
 ## Getting Started
 

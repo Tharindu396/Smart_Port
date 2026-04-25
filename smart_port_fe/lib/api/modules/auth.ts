@@ -13,9 +13,12 @@ export const authApi = {
   },
 
   register(payload: RegisterRequest): Promise<RegisterResponse> {
-    return requestJson<RegisterResponse>(`${baseUrl}/users`, {
+    return requestJson<RegisterResponse>(`${baseUrl}/users/create`, {
       method: "POST",
-      body: payload,
+      body: {
+        ...payload,
+        role: "shipping_agent",
+      },
     });
   },
 };
