@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<body style="font-family: Arial, sans-serif; color: #1a1a1a; max-width: 600px; margin: 0 auto;">
+
+  <div style="background: #0066cc; padding: 20px 24px;">
+    <h1 style="color: #fff; margin: 0; font-size: 18px;">Port Management System</h1>
+  </div>
+
+  <div style="padding: 24px; border: 1px solid #e0e0e0; border-top: none;">
+    <p>Dear Shipping Agent,</p>
+
+    <p>
+      Berth <strong>{{berthName}}</strong> ({{berthId}}) has been temporarily
+      reserved for vessel <strong>{{vesselName}}</strong>.
+    </p>
+
+    <div style="background: #fff8e1; border-left: 4px solid #f0a500;
+                padding: 12px 16px; margin: 20px 0; border-radius: 4px;">
+      <strong>Payment deadline: {{lockExpiry}}</strong><br/>
+      The reservation will be automatically released if payment is not
+      received before this time.
+    </div>
+
+    <p>Please log in to the portal to complete your payment.</p>
+
+    <p style="color: #888; font-size: 12px; margin-top: 40px; border-top: 1px solid #eee; padding-top: 12px;">
+      This is an automated message from Port Management System. Do not reply to this email.
+    </p>
+  </div>
+
+</body>
+</html>
