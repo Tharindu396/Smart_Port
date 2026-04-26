@@ -16,7 +16,13 @@ func main() {
 	config.LoadEnv()
 	db := config.InitPostgres()
 	defer db.Close()
+
+	// Initialize Kafka producer
+	kafkaProducer := config.InitKafkaProducer()
+	defer config.CloseKafkaProducer()
+
 	handlers.SetVesselDB(db)
+	handlers.SetKafkaProducer(kafkaProducer)
 	handlers.StartVesselAutoRefreshScheduler()
 
 	r := gin.Default()
