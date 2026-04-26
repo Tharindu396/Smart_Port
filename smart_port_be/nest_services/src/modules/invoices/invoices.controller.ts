@@ -12,6 +12,7 @@ export class InvoicesController {
 
   constructor(private readonly invoicesService: InvoicesService) {}
 
+  // GET ALL
   @Get()
   @Roles(Role.SHIPPING_AGENT, Role.FINANCE_OFFICER)
   @RequirePermission('view_invoices')
@@ -19,6 +20,7 @@ export class InvoicesController {
     return this.invoicesService.getInvoices();
   }
 
+  // CREATE
   @Post()
   @Roles(Role.FINANCE_OFFICER)
   @RequirePermission('set_tariff_rates')
@@ -26,10 +28,19 @@ export class InvoicesController {
     return this.invoicesService.createInvoice(invoiceData);
   }
 
+  // DELETE
   @Delete(':id')
   @Roles(Role.FINANCE_OFFICER)
   @RequirePermission('approve_penalty_waivers')
   deleteInvoice(@Param('id', ParseIntPipe) id: number) {
     return this.invoicesService.deleteInvoice(id);
+  }
+
+  // MARK AS PAID 
+  @Post(':id/pay')
+  @Roles(Role.FINANCE_OFFICER)
+  @RequirePermission('approve_penalty_waivers') 
+  markPaid(@Param('id', ParseIntPipe) id: number) {
+    return this.invoicesService.markAsPaid(id);
   }
 }
