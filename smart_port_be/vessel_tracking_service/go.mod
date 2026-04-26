@@ -10,6 +10,8 @@ require (
 	github.com/redis/go-redis/v9 v9.18.0
 )
 
+require github.com/gin-contrib/cors v1.7.7 // indirect
+
 require (
 	github.com/aisstream/ais-message-models/golang/aisStream v0.0.0-20230628154343-8650fc5bf8c3
 	github.com/bytedance/gopkg v0.1.4 // indirect

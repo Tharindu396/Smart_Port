@@ -1,53 +1,119 @@
+"use client";
+
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { FormEvent, useState } from "react";
 import AuthShell from "../components/auth-shell";
-import { Button, Input } from "@heroui/react";
+import { Button, Input, Label, TextField } from "@heroui/react";
+import { ApiError, authApi } from "@/lib/api";
 
 export default function RegisterPage() {
+  const router = useRouter();
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [notice, setNotice] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setNotice(null);
+    setError(null);
+    setLoading(true);
+
+    try {
+      await authApi.register({
+        name: fullName,
+        email,
+        password,
+      });
+      setNotice("Registration successful. Redirecting to login...");
+      router.push("/login");
+    } catch (err) {
+      if (err instanceof ApiError) {
+        setError(err.message || "Registration failed");
+      } else if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("Registration failed. Please try again.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <AuthShell title="Register" subtitle="Create your Smart Port account.">
-      <form className="space-y-4" aria-label="registration form">
+      <form className="space-y-4" aria-label="registration form" onSubmit={handleSubmit}>
         <div className="space-y-1">
-          <label htmlFor="fullName" className="block text-sm font-medium">
+          <TextField isRequired>
+          <Label htmlFor="fullName" className="block text-sm font-medium">
             Full Name
-          </label>
+          </Label>
           <Input
             id="fullName"
             type="text"
             name="fullName"
+            value={fullName}
+            onChange={(event) => setFullName(event.target.value)}
             placeholder="Your full name"
             className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none transition focus:border-zinc-500 dark:border-zinc-700"
+            
           />
+          </TextField>
         </div>
 
         <div className="space-y-1">
-          <label htmlFor="email" className="block text-sm font-medium">
+          <TextField isRequired>
+          <Label htmlFor="email" className="block text-sm font-medium">
             Email
-          </label>
+          </Label>
           <Input
             id="email"
             type="email"
             name="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
             placeholder="you@company.com"
             className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none transition focus:border-zinc-500 dark:border-zinc-700"
+            
           />
+          </TextField>
         </div>
 
         <div className="space-y-1">
-          <label htmlFor="password" className="block text-sm font-medium">
+          <p className="text-xs text-default-500">
+            Accounts created from this page are registered as <span className="font-semibold">Shipping Agent</span>.
+            Admin-created roles are managed from the Users dashboard.
+          </p>
+        </div>
+
+        <div className="space-y-1">
+          <TextField isRequired>
+          <Label htmlFor="password" className="block text-sm font-medium">
             Password
-          </label>
+          </Label>
           <Input
             id="password"
             type="password"
             name="password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
             placeholder="Create a password"
             className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm outline-none transition focus:border-zinc-500 dark:border-zinc-700"
+            
           />
+          </TextField>
         </div>
+
+        {notice && <p className="text-sm text-warning">{notice}</p>}
+        {error && <p className="text-sm text-danger">{error}</p>}
 
         <Button
           type="submit"
           className="w-full rounded-md border border-zinc-900 bg-zinc-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-zinc-800 dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200"
+          isPending={loading}
         >
           Register
         </Button>

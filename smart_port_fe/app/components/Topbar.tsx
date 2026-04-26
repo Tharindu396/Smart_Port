@@ -5,6 +5,7 @@ import {
   SearchField,
   Dropdown,
   Avatar,
+  Chip,
   cn,
   Switch,
   Label
@@ -17,20 +18,66 @@ import {
   LogOut,
 } from "lucide-react";
 import { useTheme } from "next-themes";
+import { useRouter } from "next/navigation";
+import type { SessionUser } from "@/lib/auth/session";
+import { clearSession } from "@/lib/auth/session";
 
 interface TopbarProps {
   onMobileMenuToggle: () => void;
   pageTitle?: string;
+  sessionUser?: SessionUser | null;
   className?: string;
+}
+
+function roleToLabel(role?: SessionUser["role"]): string {
+  if (!role) return "Guest";
+  return role
+    .split("_")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function initialsFromName(name?: string): string {
+  if (!name) return "SP";
+  return name
+    .split(" ")
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
 }
 
 export function Topbar({
   onMobileMenuToggle,
   pageTitle = "Dashboard",
+  sessionUser,
   className,
 }: TopbarProps) {
+  const router = useRouter();
   const { resolvedTheme, setTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
+  const roleLabel = roleToLabel(sessionUser?.role);
+  const initials = initialsFromName(sessionUser?.name);
+
+  const handleMenuAction = (key: string | number) => {
+    if (String(key) === "logout") {
+      clearSession();
+      router.push("/login");
+      router.refresh();
+    }
+
+    else if (String(key) === "dashboard") {
+      router.push("/dashboard");
+    }
+
+    else if (String(key) === "profile") {
+      router.push("/profile");
+    }
+
+    else if (String(key) === "settings") {
+      router.push("/settings");
+    }
+  };
 
   return (
     <nav
@@ -46,7 +93,7 @@ export function Topbar({
           {/* Mobile hamburger */}
           <Button
             isIconOnly
-            variant="primary"
+            variant="tertiary"
             size="sm"
             onPress={onMobileMenuToggle}
             aria-label="Open navigation menu"
@@ -76,6 +123,14 @@ export function Topbar({
 
         {/* RIGHT */}
         <div className="flex items-center gap-1">
+          <Chip
+            size="sm"
+            variant="soft"
+            color={sessionUser?.role === "admin" ? "warning" : "accent"}
+            className="hidden md:inline-flex"
+          >
+            {roleLabel}
+          </Chip>
           
           {/* Mobile search
           <Tooltip>
@@ -118,10 +173,10 @@ export function Topbar({
             <Dropdown.Trigger className="rounded-full">
               <Avatar>
                 <Avatar.Image
-                  alt="Junior Garcia"
+                  alt={sessionUser?.name ?? "Smart Port User"}
                   src="https://heroui-assets.nyc3.cdn.digitaloceanspaces.com/avatars/orange.jpg"
                 />
-                <Avatar.Fallback delayMs={600}>JD</Avatar.Fallback>
+                <Avatar.Fallback delayMs={600}>{initials}</Avatar.Fallback>
               </Avatar>
             </Dropdown.Trigger>
             <Dropdown.Popover>
@@ -129,18 +184,19 @@ export function Topbar({
                 <div className="flex items-center gap-2">
                   <Avatar size="sm">
                     <Avatar.Image
-                      alt="Jane"
+                      alt={sessionUser?.name ?? "Smart Port User"}
                       src="https://heroui-assets.nyc3.cdn.digitaloceanspaces.com/avatars/orange.jpg"
                     />
-                    <Avatar.Fallback delayMs={600}>JD</Avatar.Fallback>
+                    <Avatar.Fallback delayMs={600}>{initials}</Avatar.Fallback>
                   </Avatar>
                   <div className="flex flex-col gap-0">
-                    <p className="text-sm leading-5 font-medium">Jane Doe</p>
-                    <p className="text-xs leading-none text-muted">jane@example.com</p>
+                    <p className="text-sm leading-5 font-medium">{sessionUser?.name ?? "Guest User"}</p>
+                    <p className="text-xs leading-none text-muted">{sessionUser?.email ?? "guest@smartport"}</p>
+                    <p className="text-xs leading-none text-default-500 mt-1">{roleLabel}</p>
                   </div>
                 </div>
               </div>
-              <Dropdown.Menu>
+              <Dropdown.Menu onAction={handleMenuAction}>
                 <Dropdown.Item id="dashboard" textValue="Dashboard">
                   <Label>Dashboard</Label>
                 </Dropdown.Item>

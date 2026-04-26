@@ -1,12 +1,13 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { cn } from "@heroui/react";
 import { Sidebar } from "./Sidebar";
 import { MobileSidebar } from "./MobileSidebar";
 import { Topbar } from "./Topbar";
 import { useDashboard } from "@/app/hooks/useDashboard";
 import { navSections } from "@/app/config/dashboard.config";
+import { getSessionUser, type SessionUser } from "@/lib/auth/session";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -37,6 +38,8 @@ export function DashboardLayout({
   pageTitle,
   className,
 }: DashboardLayoutProps) {
+  const [sessionUser, setSessionUser] = useState<SessionUser | null>(null);
+
   const {
     sidebarState,
     isMobileOpen,
@@ -46,6 +49,10 @@ export function DashboardLayout({
     closeMobile,
     setActiveKey,
   } = useDashboard(defaultActiveKey);
+
+  useEffect(() => {
+    setSessionUser(getSessionUser());
+  }, []);
 
   // Derive page title from active nav item if not provided
   const resolvedTitle =
@@ -63,6 +70,7 @@ export function DashboardLayout({
         activeKey={activeKey}
         onToggle={toggleSidebar}
         onNavClick={setActiveKey}
+        sessionUser={sessionUser}
         className="hidden lg:flex"
       />
 
@@ -80,6 +88,7 @@ export function DashboardLayout({
         <Topbar
           onMobileMenuToggle={toggleMobile}
           pageTitle={resolvedTitle}
+          sessionUser={sessionUser}
           className="shrink-0"
         />
 

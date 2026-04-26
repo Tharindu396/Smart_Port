@@ -3,6 +3,7 @@ package allocation
 import (
 	"context"
 	"smartport/berthing-service/internal/models"
+
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
 )
 
@@ -15,11 +16,12 @@ type Repository interface {
 	UpdateSlotDepth(ctx context.Context, slotID string, newDepth float64) error
 	CreateNewSlot(ctx context.Context, slot models.Slot) error
 	GetDependencyCount(ctx context.Context, containerID string) (int, error)
-	ReserveSlots(ctx context.Context, slotIds []string, expiryMinutes int) error
+	ReserveSlots(ctx context.Context, slotIds []string, vesselID string, vesselName string, allocatedBy string, expiryMinutes int) error
 	ConfirmReservation(ctx context.Context, slotIds []string) error
 	CancelReservation(ctx context.Context, slotIds []string) error
 	ConfirmReservationByVessel(ctx context.Context, vesselID string) error
-    ReleaseSlotsByVessel(ctx context.Context, vesselID string) error
+	ReleaseSlotsByVessel(ctx context.Context, vesselID string) error
+	GetAllocationHistory(ctx context.Context, limit int) ([]models.AllocationHistoryEntry, error)
 }
 
 // Neo4jRepository is the actual implementation
@@ -57,12 +59,12 @@ func (r *Neo4jRepository) GetDependencyCount(ctx context.Context, containerID st
 
 // FR-2.1: Find contiguous empty slots of a certain length and water depth
 func (r *Neo4jRepository) FindContiguousSlots(ctx context.Context, requiredLength int, minDepth float64) ([]string, error) {
-    session := r.Driver.NewSession(ctx, neo4j.SessionConfig{AccessMode: neo4j.AccessModeRead})
-    defer session.Close(ctx)
+	session := r.Driver.NewSession(ctx, neo4j.SessionConfig{AccessMode: neo4j.AccessModeRead})
+	defer session.Close(ctx)
 
-    // The logic: A slot is available if (NOT occupied) OR (PENDING but EXPIRED).
-    // We must NEVER touch 'OCCUPIED' slots regardless of time.
-    query := `
+	// The logic: A slot is available if (NOT occupied) OR (PENDING but EXPIRED).
+	// We must NEVER touch 'OCCUPIED' slots regardless of time.
+	query := `
         MATCH p = (start:Slot)-[:ADJACENT_TO*]->(end:Slot)
         WHERE length(p) = $requiredLength - 1
           AND ALL(n IN nodes(p) WHERE 
@@ -75,27 +77,27 @@ func (r *Neo4jRepository) FindContiguousSlots(ctx context.Context, requiredLengt
         LIMIT 1
     `
 
-    result, err := session.Run(ctx, query, map[string]interface{}{
-        "requiredLength": requiredLength,
-        "minDepth":       minDepth,
-    })
-    if err != nil {
-        return nil, err
-    }
+	result, err := session.Run(ctx, query, map[string]interface{}{
+		"requiredLength": requiredLength,
+		"minDepth":       minDepth,
+	})
+	if err != nil {
+		return nil, err
+	}
 
-    if result.Next(ctx) {
-        record := result.Record()
-        ids, _ := record.Get("slotIds")
-        
-        interfaceSlice := ids.([]interface{})
-        stringSlice := make([]string, len(interfaceSlice))
-        for i, v := range interfaceSlice {
-            stringSlice[i] = v.(string)
-        }
-        return stringSlice, nil
-    }
+	if result.Next(ctx) {
+		record := result.Record()
+		ids, _ := record.Get("slotIds")
 
-    return nil, nil 
+		interfaceSlice := ids.([]interface{})
+		stringSlice := make([]string, len(interfaceSlice))
+		for i, v := range interfaceSlice {
+			stringSlice[i] = v.(string)
+		}
+		return stringSlice, nil
+	}
+
+	return nil, nil
 }
 
 // GetAllSlots returns the current state of the port for the dashboard
@@ -103,23 +105,39 @@ func (r *Neo4jRepository) GetAllSlots(ctx context.Context) ([]models.Slot, error
 	session := r.Driver.NewSession(ctx, neo4j.SessionConfig{AccessMode: neo4j.AccessModeRead})
 	defer session.Close(ctx)
 
-	query := `MATCH (s:Slot) RETURN s.id, s.type, s.isOccupied, s.depth`
+	query := `
+		MATCH (s:Slot)
+		RETURN
+			s.id AS id,
+			s.type AS type,
+			coalesce(s.isOccupied, false) AS isOccupied,
+			coalesce(s.depth, 0.0) AS depth,
+			coalesce(s.status, 'AVAILABLE') AS status,
+			coalesce(s.reservedBy, '') AS reservedBy
+		ORDER BY s.id
+	`
 	result, err := session.Run(ctx, query, nil)
-	if err != nil { return nil, err }
+	if err != nil {
+		return nil, err
+	}
 
 	var slots []models.Slot
 	for result.Next(ctx) {
 		record := result.Record()
-		id, _ := record.Get("s.id")
-		sType, _ := record.Get("s.type")
-		isOcc, _ := record.Get("s.isOccupied")
-		depth, _ := record.Get("s.depth")
+		id, _ := record.Get("id")
+		sType, _ := record.Get("type")
+		isOcc, _ := record.Get("isOccupied")
+		depth, _ := record.Get("depth")
+		status, _ := record.Get("status")
+		reservedBy, _ := record.Get("reservedBy")
 
 		slots = append(slots, models.Slot{
 			ID:         id.(string),
 			Type:       sType.(string),
 			IsOccupied: isOcc.(bool),
 			Depth:      depth.(float64),
+			Status:     status.(string),
+			ReservedBy: reservedBy.(string),
 		})
 	}
 	return slots, nil
@@ -152,7 +170,7 @@ func (r *Neo4jRepository) CreateNewSlot(ctx context.Context, slot models.Slot) e
 	return err
 }
 
-func (r *Neo4jRepository) ReserveSlots(ctx context.Context, slotIds []string, expiryMinutes int) error {
+func (r *Neo4jRepository) ReserveSlots(ctx context.Context, slotIds []string, vesselID string, vesselName string, allocatedBy string, expiryMinutes int) error {
 	session := r.Driver.NewSession(ctx, neo4j.SessionConfig{AccessMode: neo4j.AccessModeWrite})
 	defer session.Close(ctx)
 
@@ -161,49 +179,113 @@ func (r *Neo4jRepository) ReserveSlots(ctx context.Context, slotIds []string, ex
 		MATCH (s:Slot) WHERE s.id IN $ids
 		SET s.status = 'PENDING_PAYMENT', 
 		    s.isOccupied = true,
+		    s.reservedBy = $vesselID,
 		    s.reservedUntil = datetime() + duration({minutes: $expiry})
+		CREATE (e:AllocationEvent {
+			vesselID: $vesselID,
+			vesselName: $vesselName,
+			allocatedBy: $allocatedBy,
+			slotIDs: $ids,
+			allocatedAt: datetime()
+		})
 	`
 	_, err := session.Run(ctx, query, map[string]interface{}{
-		"ids":    slotIds,
-		"expiry": expiryMinutes,
+		"ids":         slotIds,
+		"vesselID":    vesselID,
+		"vesselName":  vesselName,
+		"allocatedBy": allocatedBy,
+		"expiry":      expiryMinutes,
 	})
 	return err
 }
+
+func (r *Neo4jRepository) GetAllocationHistory(ctx context.Context, limit int) ([]models.AllocationHistoryEntry, error) {
+	session := r.Driver.NewSession(ctx, neo4j.SessionConfig{AccessMode: neo4j.AccessModeRead})
+	defer session.Close(ctx)
+
+	query := `
+		MATCH (e:AllocationEvent)
+		RETURN
+			coalesce(e.vesselID, '') AS vesselID,
+			coalesce(e.vesselName, '') AS vesselName,
+			coalesce(e.allocatedBy, 'system') AS allocatedBy,
+			toString(e.allocatedAt) AS allocatedAt,
+			coalesce(e.slotIDs, []) AS slotIDs
+		ORDER BY e.allocatedAt DESC
+		LIMIT $limit
+	`
+
+	result, err := session.Run(ctx, query, map[string]interface{}{"limit": limit})
+	if err != nil {
+		return nil, err
+	}
+
+	history := make([]models.AllocationHistoryEntry, 0)
+	for result.Next(ctx) {
+		record := result.Record()
+		vesselID, _ := record.Get("vesselID")
+		vesselName, _ := record.Get("vesselName")
+		allocatedBy, _ := record.Get("allocatedBy")
+		allocatedAt, _ := record.Get("allocatedAt")
+		slotIDsRaw, _ := record.Get("slotIDs")
+
+		slotIDs := make([]string, 0)
+		if values, ok := slotIDsRaw.([]interface{}); ok {
+			slotIDs = make([]string, 0, len(values))
+			for _, value := range values {
+				if id, ok := value.(string); ok {
+					slotIDs = append(slotIDs, id)
+				}
+			}
+		}
+
+		history = append(history, models.AllocationHistoryEntry{
+			VesselID:    vesselID.(string),
+			VesselName:  vesselName.(string),
+			AllocatedBy: allocatedBy.(string),
+			AllocatedAt: allocatedAt.(string),
+			SlotIDs:     slotIDs,
+		})
+	}
+
+	return history, nil
+}
+
 // internal/allocation/repository.go
 
 // ConfirmReservation updates slots to a permanent occupied state after payment
 func (r *Neo4jRepository) ConfirmReservation(ctx context.Context, slotIds []string) error {
-    session := r.Driver.NewSession(ctx, neo4j.SessionConfig{AccessMode: neo4j.AccessModeWrite})
-    defer session.Close(ctx)
+	session := r.Driver.NewSession(ctx, neo4j.SessionConfig{AccessMode: neo4j.AccessModeWrite})
+	defer session.Close(ctx)
 
-    // Cypher logic: Match the pending slots and make them permanently occupied
-    query := `
+	// Cypher logic: Match the pending slots and make them permanently occupied
+	query := `
         MATCH (s:Slot) WHERE s.id IN $ids
         SET s.status = 'OCCUPIED', 
             s.isOccupied = true,
             s.reservedUntil = null
         RETURN s.id
     `
-    _, err := session.Run(ctx, query, map[string]interface{}{
-        "ids": slotIds,
-    })
-    return err
+	_, err := session.Run(ctx, query, map[string]interface{}{
+		"ids": slotIds,
+	})
+	return err
 }
 
 // CancelReservation is the "Compensating Transaction" for a failed payment
 func (r *Neo4jRepository) CancelReservation(ctx context.Context, slotIds []string) error {
-    session := r.Driver.NewSession(ctx, neo4j.SessionConfig{AccessMode: neo4j.AccessModeWrite})
-    defer session.Close(ctx)
+	session := r.Driver.NewSession(ctx, neo4j.SessionConfig{AccessMode: neo4j.AccessModeWrite})
+	defer session.Close(ctx)
 
-    // Resetting the slots to their original free state
-    query := `
+	// Resetting the slots to their original free state
+	query := `
         MATCH (s:Slot) WHERE s.id IN $ids
         SET s.status = 'AVAILABLE', 
             s.isOccupied = false,
             s.reservedUntil = null
     `
-    _, err := session.Run(ctx, query, map[string]interface{}{"ids": slotIds})
-    return err
+	_, err := session.Run(ctx, query, map[string]interface{}{"ids": slotIds})
+	return err
 }
 
 func (r *Neo4jRepository) ConfirmReservationByVessel(ctx context.Context, vesselID string) error {

@@ -1,6 +1,10 @@
 "use client";
 
+import { getSessionUser } from "@/lib/auth/session";
 import { DashboardLayout } from "@/app/components/DashboardLayout";
+import { useBerthAllocation } from "@/app/hooks/useBerthAllocation";
+import type { UserRole } from "@/lib/api";
+import { useEffect, useMemo, useState } from "react";
 import { Button, Card, Chip, ProgressBar as Progress } from "@heroui/react";
 import {
 	Anchor,
@@ -10,6 +14,7 @@ import {
 	Clock3,
 	Container,
 	LoaderCircle,
+	RefreshCw,
 	Ship,
 	Waves,
 } from "lucide-react";
@@ -44,85 +49,6 @@ const summary = [
 		detail: "Rules + weather + tide",
 		icon: CheckCircle2,
 		color: "text-secondary",
-	},
-];
-
-const berthSlots: Array<{
-	berth: string;
-	terminal: string;
-	status: BerthStatus;
-	vessel: string;
-	operation: string;
-	etaOrEtd: string;
-	loaLimit: string;
-	draft: string;
-	progress: number;
-}> = [
-	{
-		berth: "B-01",
-		terminal: "Container North",
-		status: "occupied",
-		vessel: "MV Atlas Crown",
-		operation: "Unloading containers",
-		etaOrEtd: "ETD 15:40",
-		loaLimit: "350m",
-		draft: "15.0m",
-		progress: 72,
-	},
-	{
-		berth: "B-02",
-		terminal: "Container North",
-		status: "assigned",
-		vessel: "MS Blue Pelican",
-		operation: "Pilot boarding",
-		etaOrEtd: "ETA 13:20",
-		loaLimit: "330m",
-		draft: "14.2m",
-		progress: 45,
-	},
-	{
-		berth: "B-03",
-		terminal: "Bulk East",
-		status: "available",
-		vessel: "Awaiting assignment",
-		operation: "Ready for dry bulk",
-		etaOrEtd: "Open slot",
-		loaLimit: "290m",
-		draft: "13.5m",
-		progress: 0,
-	},
-	{
-		berth: "B-04",
-		terminal: "Energy South",
-		status: "maintenance",
-		vessel: "N/A",
-		operation: "Fender inspection",
-		etaOrEtd: "Available 18:00",
-		loaLimit: "310m",
-		draft: "14.0m",
-		progress: 58,
-	},
-	{
-		berth: "B-05",
-		terminal: "General Cargo",
-		status: "occupied",
-		vessel: "MV Sterling Bay",
-		operation: "Mixed cargo loading",
-		etaOrEtd: "ETD 16:10",
-		loaLimit: "280m",
-		draft: "12.8m",
-		progress: 64,
-	},
-	{
-		berth: "B-06",
-		terminal: "General Cargo",
-		status: "assigned",
-		vessel: "MV Pacific Reef",
-		operation: "Final tug confirmation",
-		etaOrEtd: "ETA 14:05",
-		loaLimit: "275m",
-		draft: "12.6m",
-		progress: 36,
 	},
 ];
 
@@ -180,6 +106,27 @@ function getProgressColor(status: BerthStatus): "accent" | "success" | "warning"
 }
 
 export default function BerthPage() {
+	const { slots: berthSlots, history, loading, autoAllocating, error, actionMessage, refresh, runAutoAllocation } =
+		useBerthAllocation();
+	const [sessionRole, setSessionRole] = useState<UserRole | null>(null);
+	const [allocatorLabel, setAllocatorLabel] = useState<string>("system");
+
+	useEffect(() => {
+		const user = getSessionUser();
+		setSessionRole(user?.role ?? null);
+		setAllocatorLabel(user?.email || user?.name || "system");
+	}, []);
+
+	const canRunAutoAllocation = useMemo(
+		() => sessionRole === "berth_planner" || sessionRole === "admin",
+		[sessionRole]
+	);
+
+	const handleRunAutoAllocation = () => {
+		if (!canRunAutoAllocation) return;
+		runAutoAllocation(allocatorLabel);
+	};
+
 	return (
 		<DashboardLayout defaultActiveKey="berths" pageTitle="Berth Allocation">
 			<section className="space-y-6">
@@ -202,9 +149,18 @@ export default function BerthPage() {
                                 <CalendarClock size={15} />
 								View 24h Plan
 							</Button>
-							<Button variant="primary" >
+							<Button
+								variant="primary"
+								onPress={handleRunAutoAllocation}
+								isPending={autoAllocating}
+								isDisabled={!canRunAutoAllocation}
+							>
 								Run Auto Allocation
                                 <ArrowRight size={15} />
+							</Button>
+							<Button variant="ghost" onPress={refresh} isPending={loading}>
+								<RefreshCw size={15} />
+								Refresh
 							</Button>
 						</div>
 					</div>
@@ -245,6 +201,36 @@ export default function BerthPage() {
 						</Card.Header>
 
 						<Card.Content className="space-y-3">
+							{!canRunAutoAllocation && (
+								<div className="rounded-lg border border-warning/30 bg-warning/5 p-3 text-xs text-warning-700">
+									Only berth planners and admins can run auto-allocation.
+								</div>
+							)}
+
+							{actionMessage && (
+								<div className="rounded-lg border border-success/30 bg-success/5 p-3 text-sm text-success-700">
+									{actionMessage}
+								</div>
+							)}
+
+							{error && (
+								<div className="rounded-lg border border-danger/30 bg-danger/5 p-3 text-sm text-danger-700">
+									Unable to load live berth data: {error}
+								</div>
+							)}
+
+							{loading && berthSlots.length === 0 && (
+								<div className="rounded-lg border border-divider p-4 text-sm text-default-500">
+									Loading berth allocation data...
+								</div>
+							)}
+
+							{!loading && berthSlots.length === 0 && !error && (
+								<div className="rounded-lg border border-divider p-4 text-sm text-default-500">
+									No slots were returned by berthing-service. Verify Neo4j slot seed data.
+								</div>
+							)}
+
 							{berthSlots.map((slot) => (
 								<div
 									key={slot.berth}
@@ -328,30 +314,34 @@ export default function BerthPage() {
 
 						<Card className="bg-linear-to-br from-content1 to-warning/5">
 							<Card.Header>
-								<Card.Title>Shift Timeline</Card.Title>
-								<Card.Description>Critical windows for this operational cycle</Card.Description>
+								<Card.Title>Recent Allocation History</Card.Title>
+								<Card.Description>Who allocated which vessel and when</Card.Description>
 							</Card.Header>
 
 							<Card.Content className="space-y-3">
-								{shiftEvents.map((event) => (
-									<div key={`${event.time}-${event.event}`} className="flex items-start gap-3 rounded-lg border border-divider p-3">
+								{history.length === 0 && (
+									<div className="rounded-lg border border-divider p-3 text-xs text-default-500">
+										No allocation history available yet.
+									</div>
+								)}
+
+								{history.slice(0, 6).map((item) => (
+									<div
+										key={`${item.vessel_id}-${item.allocated_at}`}
+										className="flex items-start gap-3 rounded-lg border border-divider p-3"
+									>
 										<div className="pt-1">
-											<LoaderCircle
-												size={14}
-												className={
-													event.tone === "success"
-														? "text-success"
-														: event.tone === "warning"
-														? "text-warning"
-														: event.tone === "primary"
-														? "text-primary"
-														: "text-default-500"
-												}
-											/>
+											<LoaderCircle size={14} className="text-primary" />
 										</div>
-										<div className="min-w-0">
-											<p className="text-xs text-default-500">{event.time}</p>
-											<p className="text-sm font-medium leading-snug">{event.event}</p>
+										<div className="min-w-0 space-y-1">
+											<p className="text-xs text-default-500">
+												{new Date(item.allocated_at).toLocaleString()}
+											</p>
+											<p className="text-sm font-medium leading-snug">
+												{item.vessel_name || item.vessel_id}
+											</p>
+											<p className="text-xs text-default-600">Allocated by {item.allocated_by}</p>
+											<p className="text-xs text-default-500">Slots: {item.slot_ids.join(", ") || "n/a"}</p>
 										</div>
 									</div>
 								))}

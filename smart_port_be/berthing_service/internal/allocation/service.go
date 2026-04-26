@@ -3,13 +3,13 @@ package allocation
 import (
 	"context"
 	"fmt"
-	"smartport/berthing-service/internal/models"
 	"smartport/berthing-service/internal/infrastructure"
+	"smartport/berthing-service/internal/models"
 )
 
 // Service defines the business logic for allocation
 type Service struct {
-	repo Repository
+	repo     Repository
 	producer *infrastructure.KafkaProducer
 }
 
@@ -24,7 +24,7 @@ func NewService(repo Repository, producer *infrastructure.KafkaProducer) *Servic
 // AllocateBerth handles FR-2.1 (Space Optimization)
 func (s *Service) AllocateBerth(ctx context.Context, vessel models.Vessel) ([]string, error) {
 	requiredLength := vessel.Length + 1
-	
+
 	// 1. Find the slots (Existing logic)
 	slots, err := s.repo.FindContiguousSlots(ctx, requiredLength, vessel.Draft)
 	if err != nil || len(slots) == 0 {
@@ -32,7 +32,12 @@ func (s *Service) AllocateBerth(ctx context.Context, vessel models.Vessel) ([]st
 	}
 
 	// 2. Database Change: Place the Temporary Lock (Phase 1 Requirement)
-	err = s.repo.ReserveSlots(ctx, slots, 30) 
+	allocatedBy := vessel.AllocatedBy
+	if allocatedBy == "" {
+		allocatedBy = "system"
+	}
+
+	err = s.repo.ReserveSlots(ctx, slots, vessel.ID, vessel.Name, allocatedBy, 30)
 	if err != nil {
 		return nil, fmt.Errorf("failed to secure temporary lock: %v", err)
 	}
@@ -77,4 +82,21 @@ func (s *Service) CancelAllocationByVessel(ctx context.Context, vesselID string)
 		return fmt.Errorf("failed to revert allocation for %s: %v", vesselID, err)
 	}
 	return nil
+}
+
+// GetAllSlots returns current slot state for berth overview dashboards.
+func (s *Service) GetAllSlots(ctx context.Context) ([]models.Slot, error) {
+	return s.repo.GetAllSlots(ctx)
+}
+
+// GetAllocationHistory returns latest allocation audit entries.
+func (s *Service) GetAllocationHistory(ctx context.Context, limit int) ([]models.AllocationHistoryEntry, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+	if limit > 100 {
+		limit = 100
+	}
+
+	return s.repo.GetAllocationHistory(ctx, limit)
 }
