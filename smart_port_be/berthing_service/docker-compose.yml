@@ -1,6 +1,8 @@
 version: '3.8'
 
 services:
+  # Infrastructure
+
   neo4j-db:
     image: neo4j:5.12
     container_name: smartport_neo4j
@@ -13,6 +15,14 @@ services:
     environment:
       - NEO4J_AUTH=neo4j/password
       - NEO4J_PLUGINS=["apoc"]
+    networks:
+      - smartport_network
+    healthcheck:
+      test: ["CMD", "cypher-shell", "-u", "neo4j", "-p", "password", "RETURN 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
   kafka:
     image: confluentinc/cp-kafka:7.5.0
@@ -22,17 +32,21 @@ services:
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: 'broker,controller'
-      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@kafka:9093' # Changed localhost to kafka
-      KAFKA_LISTENERS: 'PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093'
+      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@kafka:9093'
+      KAFKA_LISTENERS: 'PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093,EXTERNAL://0.0.0.0:9094'
       KAFKA_INTER_BROKER_LISTENER_NAME: 'PLAINTEXT'
-      KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://kafka:9092' # Changed localhost to kafka
+      KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://kafka:9092,EXTERNAL://localhost:9092'
       KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT'
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,EXTERNAL:PLAINTEXT'
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       CLUSTER_ID: 'MkU3OEVBNTcwNTJENDM2Qk'
+    networks:
+      - smartport_network
+
+  # Berthing Service
 
   berthing-app:
-    build: .
+    build: ./berthing_service
     container_name: smartport_berthing_app
     ports:
       - "5003:5003"
@@ -43,9 +57,70 @@ services:
       - NEO4J_PASSWORD=password
       - KAFKA_BROKERS=kafka:9092
     depends_on:
-      - neo4j-db
-      - kafka 
-    # This part tells Docker to use the network we created manually
+      neo4j-db:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+    networks:
+      - smartport_network
+
+  # Invoice Service
+
+  invoice-postgres:
+    image: postgres:16-alpine
+    container_name: smartport_invoice_db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: invoice_db
+    ports:
+      - "5435:5432"
+    volumes:
+      - invoice_postgres_data:/var/lib/postgresql/data
+    networks:
+      - smartport_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  invoice-app:
+    build: ./invoice_service
+    container_name: smartport_invoice_app
+    ports:
+      - "5004:5004"
+    environment:
+      PORT: 5004
+      DB_HOST: invoice-postgres
+      DB_PORT: 5432
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: invoice_db
+      KAFKA_BROKERS: kafka:9092
+      KAFKA_GROUP_ID: invoice-service-group
+      KAFKA_CLIENT_ID: invoice-service
+      BERTHING_SERVICE_URL: http://smartport_berthing_app:5003
+      TARIFF_BERTH_PER_HOUR: '150.00'
+      TARIFF_PORT_FEE: '500.00'
+      TARIFF_PENALTY_PER_HOUR: '300.00'
+      TARIFF_YARD_PER_CONTAINER_PER_HOUR: '12.00'
+    depends_on:
+      invoice-postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+      berthing-app:
+        condition: service_started
+    networks:
+      - smartport_network
+    restart: unless-stopped
+
+# Volumes & Networks
+
+volumes:
+  invoice_postgres_data:
+
 networks:
   smartport_network:
     external: true
