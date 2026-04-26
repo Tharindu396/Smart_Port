@@ -13,6 +13,8 @@ import {
   Inbox,
   Ship,
   ShipWheel,
+  Container,
+  ReceiptText,
 } from "lucide-react";
 import logo from "@/app/components/images/logo.png";
 
@@ -69,6 +71,19 @@ export const navSections: NavSection[] = [
         href: "/berth",
         icon: ShipWheel,
         badge: "New",
+      },
+      {
+        key: "logistics",
+        label: "Logistics",
+        href: "/logistics",
+        icon: Container,
+        badge: "New",
+      },
+      {
+        key: "invoice",
+        label: "Billing",
+        href: "/invoice",
+        icon: ReceiptText,
       }
       // {
       //   key: "content",
