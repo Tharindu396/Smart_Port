@@ -22,16 +22,18 @@ type KafkaConsumer struct {
 }
 
 func NewKafkaConsumer(broker string, topics []string, groupID string, service AllocationService) *KafkaConsumer {
-	return &KafkaConsumer{
-		Reader: kafka.NewReader(kafka.ReaderConfig{
-			Brokers:  []string{broker},
-			GroupTopics: topics, // Listening to multiple topics (Logistics & Billing)
-			GroupID:  groupID,
-			MinBytes: 10e3, // 10KB
-			MaxBytes: 10e6, // 10MB
-		}),
-		service: service,
-	}
+    return &KafkaConsumer{
+        Reader: kafka.NewReader(kafka.ReaderConfig{
+            Brokers:     []string{broker},
+            GroupTopics: topics,
+            GroupID:     groupID,
+            // 👇 ADD THIS LINE
+            StartOffset: kafka.FirstOffset, 
+            MinBytes:    10e3, // 10KB
+            MaxBytes:    10e6, // 10MB
+        }),
+        service: service,
+    }
 }
 
 func (c *KafkaConsumer) Start(ctx context.Context) {
