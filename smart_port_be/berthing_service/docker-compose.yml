@@ -10,8 +10,6 @@ services:
     volumes:
       - ./neo4j/data:/data
       - ./neo4j/logs:/logs
-      - ./neo4j/import:/var/lib/neo4j/import
-      - ./neo4j/plugins:/plugins
     environment:
       - NEO4J_AUTH=neo4j/password
       - NEO4J_PLUGINS=["apoc"]
@@ -22,16 +20,32 @@ services:
     ports:
       - "9092:9092"
     environment:
-      # KRaft Specific Settings
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: 'broker,controller'
-      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@localhost:9093'
+      KAFKA_CONTROLLER_QUORUM_VOTERS: '1@kafka:9093' # Changed localhost to kafka
       KAFKA_LISTENERS: 'PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093'
       KAFKA_INTER_BROKER_LISTENER_NAME: 'PLAINTEXT'
-      KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://localhost:9092'
+      KAFKA_ADVERTISED_LISTENERS: 'PLAINTEXT://kafka:9092' # Changed localhost to kafka
       KAFKA_CONTROLLER_LISTENER_NAMES: 'CONTROLLER'
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT'
-      # General Settings
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      # A unique cluster ID is required for KRaft
       CLUSTER_ID: 'MkU3OEVBNTcwNTJENDM2Qk'
+
+  berthing-app:
+    build: .
+    container_name: smartport_berthing_app
+    ports:
+      - "5003:5003"
+    environment:
+      - SERVER_PORT=5003
+      - NEO4J_URI=bolt://neo4j-db:7687
+      - NEO4J_USER=neo4j
+      - NEO4J_PASSWORD=password
+      - KAFKA_BROKERS=kafka:9092
+    depends_on:
+      - neo4j-db
+      - kafka 
+    # This part tells Docker to use the network we created manually
+networks:
+  smartport_network:
+    external: true
