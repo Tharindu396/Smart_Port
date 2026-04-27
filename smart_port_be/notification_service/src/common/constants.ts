@@ -1,9 +1,9 @@
 export const KAFKA_EVENTS = {
   ALLOCATION_CONFIRMED: 'allocation.confirmed',
-  PAYMENT_CONFIRMED: 'payment.confirmed',
-  PAYMENT_FAILED: 'payment.failed',
+  PAYMENT_CONFIRMED: 'invoice.paid',
+  PAYMENT_FAILED: 'invoice.cancelled',
   VESSEL_OVERSTAYED: 'vessel.overstayed',
-  PENALTY_TRIGGER: 'penalty.trigger',
+  PENALTY_TRIGGER: 'invoice.penalty_applied',
 } as const;
 
 export const EMAIL_DEFAULTS = {
