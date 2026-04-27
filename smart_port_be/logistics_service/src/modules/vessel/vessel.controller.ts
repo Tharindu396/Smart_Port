@@ -8,6 +8,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { VesselService } from './vessel.service';
+import { MessagePattern, Payload } from '@nestjs/microservices'; 
 import { CreateVisitDto } from './dto/create-visit.dto';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
@@ -51,6 +52,18 @@ async getOne(@Param('id') id: string) {
 async delete(@Param('id') id: string) {
   return this.vesselService.remove(id);
 }
+
+@MessagePattern('berthing.allocated') // Listens for Berthing success
+  async handleBerthAllocated(@Payload() data: any) {
+    console.log(`📥 Logistics received allocation update for Visit: ${data.visitId}`);
+    return await this.vesselService.updateStatus(data.visitId, 'ALLOCATED');
+  }
+
+  @MessagePattern('berthing.failed') // Listens for Berthing failure
+  async handleBerthFailed(@Payload() data: any) {
+    console.warn(`📥 Logistics received allocation failure for Visit: ${data.visitId}`);
+    return await this.vesselService.updateStatus(data.visitId, 'REJECTED');
+  }
 
 
 }

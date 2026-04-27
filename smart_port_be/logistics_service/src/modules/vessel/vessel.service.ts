@@ -31,6 +31,7 @@ export class VesselService {
       visitId: savedVisit.id,
       vesselId: savedVisit.vesselId,
       vesselName: savedVisit.vesselName,
+      agentId: savedVisit.requestedByAgentId,
       dimensions: {
         length: savedVisit.length,
         depth: savedVisit.depth,
