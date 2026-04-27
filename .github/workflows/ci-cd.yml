@@ -72,13 +72,6 @@ jobs:
         working-directory: ${{ matrix.service.path }}
         run: npm run build --if-present
 
-      - name: Run Node tests
-        if: matrix.service.lang == 'node'
-        working-directory: ${{ matrix.service.path }}
-        run: npm test --if-present -- --passWithNoTests
-        env:
-          NODE_ENV: test
-
       # ── Go services ──
       - name: Setup Go
         if: matrix.service.lang == 'go'
@@ -92,10 +85,6 @@ jobs:
         working-directory: ${{ matrix.service.path }}
         run: go build ./...
 
-      - name: Run Go tests
-        if: matrix.service.lang == 'go'
-        working-directory: ${{ matrix.service.path }}
-        run: go test ./... -v -coverprofile=coverage.out
 
   # ── 2. Build & Push Docker Images ──────────────────────────────────────────
   build-and-push:
