@@ -1,0 +1,13 @@
+# ─── terraform.tfvars.example ─────────────────────────────────────────────────
+# Copy this file to terraform.tfvars and fill in your real values.
+# NEVER commit terraform.tfvars to version control.
+
+aws_region     = "us-east-1"
+aws_account_id = "123456789012"
+environment    = "production"
+domain_name    = "smartport.yourdomain.com"
+
+# Set in CI as TF_VAR_* environment variables (GitHub Secrets):
+# db_password = "..."
+# smtp_pass   = "..."
+# ais_api_key = "..."

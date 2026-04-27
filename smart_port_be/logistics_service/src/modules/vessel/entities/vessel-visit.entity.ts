@@ -14,6 +14,9 @@ export class VesselVisit {
   vesselId!: string;
 
   @Column()
+  requestedByAgentId!: string;
+
+  @Column()
   vesselName!: string;
 
   @Column('float')
