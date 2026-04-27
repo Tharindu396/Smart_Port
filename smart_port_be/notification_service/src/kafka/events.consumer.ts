@@ -1,6 +1,7 @@
 import { Controller, Logger } from '@nestjs/common';
 import { EventPattern, Payload } from '@nestjs/microservices';
 import { EmailService } from '../channels/emails.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { TemplateLoader } from '../template/template.loader';
 import {
   AllocationConfirmedEvent,
@@ -15,7 +16,10 @@ import { KAFKA_EVENTS } from '../common/constants';
 export class EventsConsumer {
   private readonly logger = new Logger(EventsConsumer.name);
 
-  constructor(private readonly emailService: EmailService) {}
+  constructor(
+    private readonly emailService: EmailService,
+    private readonly notificationsService: NotificationsService,
+  ) {}
 
   @EventPattern(KAFKA_EVENTS.ALLOCATION_CONFIRMED)
   async handleAllocationConfirmed(
@@ -36,6 +40,13 @@ export class EventsConsumer {
       await this.emailService.send({
         to: event.shippingCompanyEmail,
         ...template,
+      });
+
+      this.notificationsService.add({
+        title: 'Allocation Confirmed',
+        detail: `${event.vesselName} allocated to berth ${event.berthName}.`,
+        severity: 'info',
+        sourceEvent: KAFKA_EVENTS.ALLOCATION_CONFIRMED,
       });
     } catch (err) {
       this.logger.error(
@@ -66,6 +77,13 @@ export class EventsConsumer {
         to: event.shippingCompanyEmail,
         ...template,
       });
+
+      this.notificationsService.add({
+        title: 'Payment Confirmed',
+        detail: `${event.vesselName} payment ${event.currency} ${event.amount.toFixed(2)} confirmed.`,
+        severity: 'info',
+        sourceEvent: KAFKA_EVENTS.PAYMENT_CONFIRMED,
+      });
     } catch (err) {
       this.logger.error(
         `[PAYMENT_CONFIRMED] Failed to process: ${err instanceof Error ? err.message : 'Unknown error'}`,
@@ -90,6 +108,13 @@ export class EventsConsumer {
       await this.emailService.send({
         to: event.shippingCompanyEmail,
         ...template,
+      });
+
+      this.notificationsService.add({
+        title: 'Payment Failed',
+        detail: `${event.vesselName} payment failed: ${event.reason}`,
+        severity: 'warning',
+        sourceEvent: KAFKA_EVENTS.PAYMENT_FAILED,
       });
     } catch (err) {
       this.logger.error(
@@ -129,6 +154,13 @@ export class EventsConsumer {
         to: event.shippingCompanyEmail,
         ...template,
       });
+
+      this.notificationsService.add({
+        title: 'Vessel Overstayed',
+        detail: `${event.vesselName} exceeded schedule by ${overdueHours}h at berth ${event.berthId}.`,
+        severity: 'critical',
+        sourceEvent: KAFKA_EVENTS.VESSEL_OVERSTAYED,
+      });
     } catch (err) {
       this.logger.error(
         `[VESSEL_OVERSTAYED] Failed to process: ${err instanceof Error ? err.message : 'Unknown error'}`,
@@ -155,6 +187,13 @@ export class EventsConsumer {
       await this.emailService.send({
         to: event.shippingCompanyEmail,
         ...template,
+      });
+
+      this.notificationsService.add({
+        title: 'Penalty Triggered',
+        detail: `${event.vesselName} penalty ${event.currency} ${event.penaltyAmount.toFixed(2)} triggered.`,
+        severity: 'warning',
+        sourceEvent: KAFKA_EVENTS.PENALTY_TRIGGER,
       });
     } catch (err) {
       this.logger.error(

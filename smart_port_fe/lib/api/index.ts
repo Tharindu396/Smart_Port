@@ -6,5 +6,6 @@ export { berthingApi } from "@/lib/api/modules/berthing";
 export { berthAllocationApi } from "@/lib/api/modules/berth-allocation";
 export { logisticsApi } from "@/lib/api/modules/logistics";
 export { invoicesApi } from "@/lib/api/modules/invoices";
+export { notificationsApi } from "@/lib/api/modules/notifications";
 export { authApi } from "@/lib/api/modules/auth";
 export { usersApi, allAssignableRoles } from "@/lib/api/modules/users";
