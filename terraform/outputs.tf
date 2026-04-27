@@ -23,12 +23,6 @@ output "rds_endpoint" {
   sensitive   = true
 }
 
-output "redis_endpoint" {
-  description = "ElastiCache Redis primary endpoint"
-  value       = aws_elasticache_replication_group.redis.primary_endpoint_address
-  sensitive   = true
-}
-
 output "kafka_bootstrap_brokers" {
   description = "MSK Kafka bootstrap brokers"
   value       = aws_msk_cluster.kafka.bootstrap_brokers

@@ -14,7 +14,6 @@ locals {
     { name = "DB_USER",     value = var.db_username },
     { name = "DB_NAME",     value = var.db_name },
     { name = "DB_SSLMODE",  value = "require" },
-    { name = "REDIS_ADDR",  value = "${aws_elasticache_replication_group.redis.primary_endpoint_address}:6379" },
     { name = "KAFKA_BROKERS", value = aws_msk_cluster.kafka.bootstrap_brokers },
     { name = "NODE_ENV",    value = "production" },
   ]

@@ -34,32 +34,6 @@ resource "aws_db_instance" "postgres" {
   tags = { Name = "smartport-postgres" }
 }
 
-# ─── ElastiCache Redis ────────────────────────────────────────────────────────
-resource "aws_elasticache_subnet_group" "main" {
-  name       = "smartport-redis-subnet-group"
-  subnet_ids = aws_subnet.private[*].id
-  tags       = { Name = "smartport-redis-subnet-group" }
-}
-
-resource "aws_elasticache_replication_group" "redis" {
-  replication_group_id = "smartport-redis"
-  description          = "SmartPort Redis cluster"
-
-  node_type            = "cache.t3.micro"
-  num_cache_clusters   = 1
-  parameter_group_name = "default.redis7"
-  engine_version       = "7.0"
-  port                 = 6379
-
-  subnet_group_name  = aws_elasticache_subnet_group.main.name
-  security_group_ids = [aws_security_group.redis.id]
-
-  at_rest_encryption_enabled = true
-  transit_encryption_enabled = false   # set true with AUTH token for production
-
-  tags = { Name = "smartport-redis" }
-}
-
 # ─── MSK (Managed Kafka) ─────────────────────────────────────────────────────
 resource "aws_msk_cluster" "kafka" {
   cluster_name           = "smartport-kafka"
