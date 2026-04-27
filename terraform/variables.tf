@@ -65,9 +65,3 @@ variable "smtp_pass" {
   type        = string
   sensitive   = true
 }
-
-variable "ais_api_key" {
-  description = "AIS stream API key"
-  type        = string
-  sensitive   = true
-}
