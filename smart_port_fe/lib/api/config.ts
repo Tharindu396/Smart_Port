@@ -3,6 +3,10 @@ export const apiConfig = {
     process.env.NEXT_PUBLIC_VESSEL_TRACKING_API_URL ?? "http://localhost:8080/api",
   berthingServiceBaseUrl:
     process.env.NEXT_PUBLIC_BERTHING_API_URL ?? "http://localhost:5003/api/v1",
+  logisticsServiceBaseUrl:
+    process.env.NEXT_PUBLIC_LOGISTICS_API_URL ?? "http://localhost:3002",
+  invoiceServiceBaseUrl:
+    process.env.NEXT_PUBLIC_INVOICE_API_URL ?? "http://localhost:5004/api/v1",
   nestServicesBaseUrl:
     process.env.NEXT_PUBLIC_NEST_API_URL ?? "http://localhost:8000",
 };

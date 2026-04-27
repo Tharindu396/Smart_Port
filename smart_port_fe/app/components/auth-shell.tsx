@@ -12,13 +12,16 @@ export default function AuthShell({ title, subtitle, children }: AuthShellProps)
   return (
     <div className="min-h-screen bg-zinc-100 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100">
       <header className="mx-auto w-full max-w-4xl justify-center px-6 pt-8">
-        <div className="flex items-center justify-center gap-4">
+        <div className="flex flex-col items-center justify-center gap-2">
           <Image
             src={logo}
             alt="Company logo"
             className="h-20 w-auto object-contain border-2 border-zinc-300 rounded-lg p-1 bg-white dark:border-zinc-700 dark:bg-black"
             priority
           />
+          <p className="text-sm font-semibold tracking-wide text-zinc-700 dark:text-zinc-300">
+            Ceylon Port Authority - Smart Port Dashboard
+          </p>
         </div>
       </header>
 
