@@ -7,15 +7,21 @@ import (
 	"time"
 
 	"go-server/config"
+	"go-server/infrastructure"
 	"go-server/models"
 
 	"github.com/gin-gonic/gin"
 )
 
 var vesselDB *sql.DB
+var kafkaProducer *infrastructure.KafkaProducer
 
 func SetVesselDB(db *sql.DB) {
 	vesselDB = db
+}
+
+func SetKafkaProducer(producer *infrastructure.KafkaProducer) {
+	kafkaProducer = producer
 }
 
 func ensureVesselsTable(ctx context.Context) error {
@@ -209,6 +215,34 @@ func UpdateVessel(c *gin.Context) {
 		return
 	}
 
+	// Get the old vessel data to check for status changes
+	var oldVessel models.Vessel
+	err := vesselDB.QueryRowContext(
+		ctx,
+		`SELECT mmsi, name, length, draft, status, latitude, longitude, speed, heading, timestamp FROM vessels WHERE mmsi = $1`,
+		mmsi,
+	).Scan(
+		&oldVessel.MMSI,
+		&oldVessel.Name,
+		&oldVessel.Length,
+		&oldVessel.Draft,
+		&oldVessel.Status,
+		&oldVessel.Latitude,
+		&oldVessel.Longitude,
+		&oldVessel.Speed,
+		&oldVessel.Heading,
+		&oldVessel.Timestamp,
+	)
+
+	if err == sql.ErrNoRows {
+		c.JSON(http.StatusNotFound, gin.H{"error": "vessel not found"})
+		return
+	}
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
 	query := `
 		UPDATE vessels
 		SET name = $2, length = $3, draft = $4, status = $5, latitude = $6, longitude = $7, speed = $8, heading = $9, timestamp = $10
@@ -242,6 +276,38 @@ func UpdateVessel(c *gin.Context) {
 	if affected == 0 {
 		c.JSON(http.StatusNotFound, gin.H{"error": "vessel not found"})
 		return
+	}
+
+	// Publish Kafka events based on status changes
+	if kafkaProducer != nil {
+		// Publish vessel.departed event if status changed to "departed"
+		if oldVessel.Status != "departed" && vessel.Status == "departed" {
+			departedEvent := infrastructure.VesselDepartedEvent{
+				VesselID:  mmsi,
+				Timestamp: time.Now().Unix(),
+				Latitude:  vessel.Latitude,
+				Longitude: vessel.Longitude,
+			}
+			if err := kafkaProducer.EmitVesselDeparted(ctx, mmsi, departedEvent); err != nil {
+				// Log the error but don't fail the request
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to emit vessel.departed event"})
+				return
+			}
+		}
+
+		// Publish vessel.overstayed event if status changed to "overstayed"
+		if oldVessel.Status != "overstayed" && vessel.Status == "overstayed" {
+			overstayedEvent := infrastructure.VesselOverstayedEvent{
+				VesselID:      mmsi,
+				Timestamp:     time.Now().Unix(),
+				CheckoutTime:  oldVessel.Timestamp,
+				OverstayHours: float64(time.Now().Unix()-oldVessel.Timestamp) / 3600.0,
+			}
+			if err := kafkaProducer.EmitVesselOverstayed(ctx, mmsi, overstayedEvent); err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to emit vessel.overstayed event"})
+				return
+			}
+		}
 	}
 
 	vessel.MMSI = mmsi
