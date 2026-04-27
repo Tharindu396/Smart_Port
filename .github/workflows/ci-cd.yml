@@ -6,7 +6,6 @@ on:
   pull_request:
     branches: [main]
 
-# Prevent concurrent deploys to the same environment
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -16,10 +15,7 @@ env:
   ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com
   TF_VERSION: 1.8.0
 
-# ─── Jobs ─────────────────────────────────────────────────────────────────────
-
 jobs:
-  # ── 1. Lint & Test ──────────────────────────────────────────────────────────
   lint-and-test:
     name: Lint & Test
     runs-on: ubuntu-latest
@@ -53,7 +49,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # ── Node.js services ──
       - name: Setup Node.js
         if: matrix.service.lang == 'node'
         uses: actions/setup-node@v4
@@ -72,7 +67,6 @@ jobs:
         working-directory: ${{ matrix.service.path }}
         run: npm run build --if-present
 
-      # ── Go services ──
       - name: Setup Go
         if: matrix.service.lang == 'go'
         uses: actions/setup-go@v5
@@ -85,15 +79,12 @@ jobs:
         working-directory: ${{ matrix.service.path }}
         run: go build ./...
 
-
-  # ── 2. Build & Push Docker Images ──────────────────────────────────────────
   build-and-push:
     name: Build & Push Images
     runs-on: ubuntu-latest
     needs: lint-and-test
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
     permissions:
-      id-token: write   # for OIDC auth with AWS
       contents: read
 
     strategy:
@@ -126,10 +117,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Configure AWS credentials (OIDC)
+      - name: Configure AWS credentials  # ← Changed to Access Keys
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to Amazon ECR
@@ -164,14 +156,12 @@ jobs:
         run: |
           echo "Pushed: ${{ env.ECR_REGISTRY }}/${{ matrix.service.ecr_repo }}:sha-${{ github.sha }}"
 
-  # ── 3. Terraform Plan ───────────────────────────────────────────────────────
   terraform-plan:
     name: Terraform Plan
     runs-on: ubuntu-latest
     needs: build-and-push
     if: github.ref == 'refs/heads/main'
     permissions:
-      id-token: write
       contents: read
       pull-requests: write
 
@@ -183,10 +173,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Configure AWS credentials (OIDC)
+      - name: Configure AWS credentials  # ← Changed to Access Keys
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Setup Terraform
@@ -206,12 +197,12 @@ jobs:
           terraform plan \
             -var="image_tag=sha-${{ github.sha }}" \
             -var="aws_account_id=${{ secrets.AWS_ACCOUNT_ID }}" \
+            -var="domain_name=${{ secrets.DOMAIN_NAME }}" \
             -out=tfplan \
             -no-color 2>&1 | tee plan_output.txt
         env:
-          TF_VAR_db_password: ${{ secrets.DB_PASSWORD }}
-          TF_VAR_smtp_pass: ${{ secrets.SMTP_PASS }}
-          TF_VAR_ais_api_key: ${{ secrets.AIS_API_KEY }}
+          TF_VAR_db_password: ${{ secrets.TF_VAR_DB_PASSWORD }}
+          TF_VAR_smtp_pass: ${{ secrets.TF_VAR_SMTP_PASS }}
 
       - name: Upload plan artifact
         uses: actions/upload-artifact@v4
@@ -220,15 +211,13 @@ jobs:
           path: terraform/tfplan
           retention-days: 7
 
-  # ── 4. Terraform Apply ──────────────────────────────────────────────────────
   terraform-apply:
     name: Terraform Apply
     runs-on: ubuntu-latest
     needs: terraform-plan
     if: github.ref == 'refs/heads/main'
-    environment: production     # requires manual approval in GitHub
+    environment: production
     permissions:
-      id-token: write
       contents: read
 
     defaults:
@@ -239,10 +228,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Configure AWS credentials (OIDC)
+      - name: Configure AWS credentials  # ← Changed to Access Keys
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Setup Terraform
@@ -262,9 +252,9 @@ jobs:
       - name: Terraform Apply
         run: terraform apply -auto-approve tfplan
         env:
-          TF_VAR_db_password: ${{ secrets.DB_PASSWORD }}
-          TF_VAR_smtp_pass: ${{ secrets.SMTP_PASS }}
-          TF_VAR_ais_api_key: ${{ secrets.AIS_API_KEY }}
+          TF_VAR_db_password: ${{ secrets.TF_VAR_DB_PASSWORD }}
+          TF_VAR_smtp_pass: ${{ secrets.TF_VAR_SMTP_PASS }}
+          TF_VAR_domain_name: ${{ secrets.DOMAIN_NAME }}
 
       - name: Force ECS service redeployment
         run: |
