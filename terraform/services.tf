@@ -116,7 +116,6 @@ resource "aws_ecs_task_definition" "vessel_tracking_service" {
 
     secrets = [
       { name = "DB_PASSWORD",  valueFrom = "${aws_secretsmanager_secret.app_secrets.arn}:db_password::" },
-      { name = "AIS_API_KEY",  valueFrom = "${aws_secretsmanager_secret.app_secrets.arn}:ais_api_key::" },
     ]
 
     logConfiguration = {
@@ -462,7 +461,6 @@ resource "aws_secretsmanager_secret_version" "app_secrets" {
   secret_string = jsonencode({
     db_password = var.db_password
     smtp_pass   = var.smtp_pass
-    ais_api_key = var.ais_api_key
     smtp_user   = "noreply@${var.domain_name}"
   })
 }
