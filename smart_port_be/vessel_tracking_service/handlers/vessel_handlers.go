@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -22,6 +23,39 @@ func SetVesselDB(db *sql.DB) {
 
 func SetKafkaProducer(producer *infrastructure.KafkaProducer) {
 	kafkaProducer = producer
+}
+
+func UpdateVesselStatusByMMSI(mmsi string, status string) error {
+	if vesselDB == nil {
+		return fmt.Errorf("database is not initialized")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := ensureVesselsTable(ctx); err != nil {
+		return err
+	}
+
+	result, err := vesselDB.ExecContext(ctx, `
+		UPDATE vessels
+		SET status = $2,
+		    timestamp = $3
+		WHERE mmsi = $1
+	`, mmsi, status, time.Now().Unix())
+	if err != nil {
+		return err
+	}
+
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
+		return fmt.Errorf("vessel %s not found", mmsi)
+	}
+
+	return nil
 }
 
 func ensureVesselsTable(ctx context.Context) error {

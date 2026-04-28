@@ -33,6 +33,17 @@ Enhanced with Kafka event publishing:
 - Registers Kafka producer with handlers
 - Ensures graceful shutdown on exit
 
+### 5. **invoice.paid consumer** (New)
+- Consumes `invoice.paid` from the invoice service
+- Updates the matching vessel row to `docked`
+- Uses the `vessel_id` field from the payment confirmation payload
+
+### 6. **docked transition scheduler** (New)
+- Runs every 1 minute by default
+- Finds vessels that have been `docked` for at least 5 minutes
+- Randomly changes each one to `departed` or `overstayed`
+- Emits the matching Kafka event after the DB update
+
 ## Configuration
 
 ### Environment Variables
@@ -95,6 +106,17 @@ PUT /vessels/{mmsi}
 
 This triggers publication to `vessel.overstayed` topic.
 
+### Invoice Payment Confirmation
+When the invoice service emits `invoice.paid` for a vessel arrival, the vessel tracking service consumes the event and updates the vessel status to `docked`.
+
+```json
+{
+  "invoice_id": "inv_123",
+  "vessel_id": "210408000",
+  "paid_at": "2026-04-28T10:15:00Z"
+}
+```
+
 ## Integration with Other Services
 
 ### Invoice Service
@@ -104,6 +126,21 @@ This triggers publication to `vessel.overstayed` topic.
   - Calculate late fees (overstay penalties)
   - Update invoice status based on vessel departure
 
+### Vessel Tracking Service
+- Consumes `invoice.paid` from the invoice service
+- Updates the vessel record status to `docked`
+- Keeps the operational vessel table aligned with billing confirmation
+
+### Automatic Docked Transition
+After a vessel has been docked for 5 minutes, the scheduler randomly changes it to either `departed` or `overstayed` and publishes the corresponding event.
+
+You can tune this with environment variables:
+
+```env
+DOCKED_STATUS_DELAY_MINUTES=5
+DOCKED_STATUS_CHECK_MINUTES=1
+```
+
 ### Topics Mapping
 | Event | Topic | Producer | Consumer |
 |-------|-------|----------|----------|
@@ -111,6 +148,7 @@ This triggers publication to `vessel.overstayed` topic.
 | Vessel Overstays | vessel.overstayed | vessel_tracking_service | invoice_service |
 | Berth Reserved | berth-reservations | berthing_service | invoice_service |
 | Payment Updates | payment.updates | berthing_service | invoice_service |
+| Invoice Paid | invoice.paid | invoice_service | vessel_tracking_service |
 
 ## Event Schemas
 
