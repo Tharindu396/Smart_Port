@@ -66,6 +66,12 @@ export const navSections: NavSection[] = [
         badge: "New",
       },
       {
+        key: "shipping-agent",
+        label: "Shipping Agent",
+        href: "/shipping-agent",
+        icon: Ship,
+      },
+      {
         key: "berths",
         label: "Berths",
         href: "/berth",
