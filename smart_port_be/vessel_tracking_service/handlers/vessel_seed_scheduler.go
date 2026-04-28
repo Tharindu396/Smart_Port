@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"log"
 	"math/rand"
@@ -9,6 +10,7 @@ import (
 	"strconv"
 	"time"
 
+	"go-server/config"
 	"go-server/infrastructure"
 	"go-server/models"
 )
@@ -18,6 +20,11 @@ var (
 	vesselNames    = []string{"Aurora", "Voyager", "Neptune", "Horizon", "Meridian", "Atlas", "Navigator", "Starlight", "Wave Runner", "Endeavour"}
 	vesselTypes    = []string{"at_berth", "approaching", "underway", "idle"}
 )
+
+type shippingAgent struct {
+	ID    string
+	Email string
+}
 
 func envIntOrDefault(key string, fallback int) int {
 	raw := os.Getenv(key)
@@ -34,9 +41,10 @@ func envIntOrDefault(key string, fallback int) int {
 	return value
 }
 
-func randomVessel(rng *rand.Rand, now int64, index int) (string, string, float64, float64, string, float64, float64, float64, float64, int64) {
+func randomVessel(rng *rand.Rand, now int64, index int, agents []shippingAgent) (string, string, float64, float64, string, float64, float64, float64, float64, int64, string, string) {
 	mmsi := fmt.Sprintf("%09d", 200000000+rng.Intn(799999999))
 	name := fmt.Sprintf("%s %s %d", vesselPrefixes[rng.Intn(len(vesselPrefixes))], vesselNames[rng.Intn(len(vesselNames))], index+1)
+	agent := agents[rng.Intn(len(agents))]
 
 	length := 110.0 + rng.Float64()*220.0
 	draft := 6.0 + rng.Float64()*10.0
@@ -54,7 +62,52 @@ func randomVessel(rng *rand.Rand, now int64, index int) (string, string, float64
 	heading := rng.Float64() * 360.0
 	timestamp := now - int64(rng.Intn(900))
 
-	return mmsi, name, length, draft, status, latitude, longitude, speed, heading, timestamp
+	return mmsi, name, length, draft, status, latitude, longitude, speed, heading, timestamp, agent.ID, agent.Email
+}
+
+func loadShippingAgents(ctx context.Context) ([]shippingAgent, error) {
+	db, err := config.InitNestUsersPostgres()
+	if err != nil {
+		return nil, err
+	}
+	defer db.Close()
+
+	rows, err := db.QueryContext(ctx, `
+		SELECT id, email
+		FROM users
+		WHERE role = 'shipping_agent'
+		ORDER BY id
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	agents := make([]shippingAgent, 0)
+	for rows.Next() {
+		var id sql.NullInt64
+		var email sql.NullString
+		if err := rows.Scan(&id, &email); err != nil {
+			return nil, err
+		}
+		if !id.Valid || !email.Valid {
+			continue
+		}
+		agents = append(agents, shippingAgent{
+			ID:    fmt.Sprintf("%d", id.Int64),
+			Email: email.String,
+		})
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	if len(agents) == 0 {
+		return nil, fmt.Errorf("no shipping agents found in nest users database")
+	}
+
+	return agents, nil
 }
 
 func regenerateVesselDataset(ctx context.Context, vesselCount int) error {
@@ -81,16 +134,21 @@ func regenerateVesselDataset(ctx context.Context, vesselCount int) error {
 		return err
 	}
 
+	agents, err := loadShippingAgents(ctx)
+	if err != nil {
+		return err
+	}
+
 	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
 	now := time.Now().Unix()
 
 	insertQuery := `
-		INSERT INTO vessels (mmsi, name, length, draft, status, latitude, longitude, speed, heading, timestamp)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		INSERT INTO vessels (mmsi, name, length, draft, status, latitude, longitude, speed, heading, timestamp, shipping_agent_id, shipping_agent_email)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 	`
 
 	for i := 0; i < vesselCount; i++ {
-		mmsi, name, length, draft, status, latitude, longitude, speed, heading, timestamp := randomVessel(rng, now, i)
+		mmsi, name, length, draft, status, latitude, longitude, speed, heading, timestamp, shippingAgentID, shippingAgentEmail := randomVessel(rng, now, i, agents)
 
 		if _, err = tx.ExecContext(
 			ctx,
@@ -105,6 +163,8 @@ func regenerateVesselDataset(ctx context.Context, vesselCount int) error {
 			speed,
 			heading,
 			timestamp,
+			shippingAgentID,
+			shippingAgentEmail,
 		); err != nil {
 			return err
 		}
@@ -127,7 +187,7 @@ func findDockedVesselsForTransition(ctx context.Context, olderThan time.Time) ([
 	}
 
 	rows, err := vesselDB.QueryContext(ctx, `
-		SELECT mmsi, name, length, draft, status, latitude, longitude, speed, heading, timestamp
+		SELECT mmsi, name, length, draft, status, latitude, longitude, speed, heading, timestamp, shipping_agent_id, shipping_agent_email
 		FROM vessels
 		WHERE status = 'docked' AND timestamp <= $1
 	`, olderThan.Unix())
@@ -150,6 +210,8 @@ func findDockedVesselsForTransition(ctx context.Context, olderThan time.Time) ([
 			&vessel.Speed,
 			&vessel.Heading,
 			&vessel.Timestamp,
+			&vessel.ShippingAgentID,
+			&vessel.ShippingAgentEmail,
 		); err != nil {
 			return nil, err
 		}
@@ -194,10 +256,12 @@ func updateVesselStatusAndEmitEvent(ctx context.Context, vessel models.Vessel, s
 	switch status {
 	case "departed":
 		departedEvent := infrastructure.VesselDepartedEvent{
-			VesselID:  vessel.MMSI,
-			Timestamp: now,
-			Latitude:  vessel.Latitude,
-			Longitude: vessel.Longitude,
+			VesselID:           vessel.MMSI,
+			Timestamp:          now,
+			Latitude:           vessel.Latitude,
+			Longitude:          vessel.Longitude,
+			VesselName:         vessel.Name,
+			ShippingAgentEmail: vessel.ShippingAgentEmail,
 		}
 		if err := kafkaProducer.EmitVesselDeparted(ctx, vessel.MMSI, departedEvent); err != nil {
 			return err
@@ -208,10 +272,12 @@ func updateVesselStatusAndEmitEvent(ctx context.Context, vessel models.Vessel, s
 			overstayHours = 0
 		}
 		overstayedEvent := infrastructure.VesselOverstayedEvent{
-			VesselID:      vessel.MMSI,
-			Timestamp:     now,
-			CheckoutTime:  vessel.Timestamp,
-			OverstayHours: overstayHours,
+			VesselID:           vessel.MMSI,
+			Timestamp:          now,
+			CheckoutTime:       vessel.Timestamp,
+			OverstayHours:      overstayHours,
+			VesselName:         vessel.Name,
+			ShippingAgentEmail: vessel.ShippingAgentEmail,
 		}
 		if err := kafkaProducer.EmitVesselOverstayed(ctx, vessel.MMSI, overstayedEvent); err != nil {
 			return err

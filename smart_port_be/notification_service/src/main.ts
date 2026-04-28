@@ -14,7 +14,14 @@ async function bootstrap() {
     .filter((broker) => broker.length > 0);
 
   app.enableCors({
-    origin: process.env.CORS_ORIGIN ?? '*',
+    origin: (
+      process.env.CORS_ORIGIN
+        ? process.env.CORS_ORIGIN.split(',')
+        : ['http://localhost:3000', 'http://127.0.0.1:3000']
+    ),
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Origin', 'Content-Type', 'Accept', 'Authorization'],
+    credentials: true,
   });
 
   app.connectMicroservice<MicroserviceOptions>({

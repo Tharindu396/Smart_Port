@@ -92,7 +92,7 @@ jobs:
 
     defaults:
       run:
-        working-directory: terraform
+        working-directory: smart_port_be/terraform
 
     steps:
       - name: Checkout code
@@ -129,7 +129,7 @@ jobs:
           TF_VAR_smtp_pass: ${{ secrets.TF_VAR_SMTP_PASS }}
 
       - name: Upload plan artifact
-        if: always()
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: tfplan-${{ github.sha }}
@@ -137,6 +137,13 @@ jobs:
           retention-days: 7
           if-no-files-found: error
 
+      - name: Debug plan failure
+        if: always()
+        run: |
+          echo "Terraform plan failed. Output:"
+          cat plan_output.txt
+          exit 1
+        working-directory: smart_port_be/terraform
   # ── 3. Terraform Apply ──────────────────────────────────────────────────────
   terraform-apply:
     name: Terraform Apply
