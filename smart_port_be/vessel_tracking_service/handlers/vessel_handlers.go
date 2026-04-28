@@ -413,6 +413,20 @@ func DeleteVessel(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "vessel deleted"})
 }
 
+func RefreshVesselDataset(c *gin.Context) {
+	if vesselDB == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "database is not initialized"})
+		return
+	}
+
+	if err := RefreshVesselDatasetNow(); err != nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "vessel dataset refreshed and shipping agents assigned"})
+}
+
 func FetchAllAisData(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 20*time.Second)
 	defer cancel()

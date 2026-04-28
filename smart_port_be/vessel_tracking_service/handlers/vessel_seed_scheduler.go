@@ -119,6 +119,14 @@ func regenerateVesselDataset(ctx context.Context, vesselCount int) error {
 		return err
 	}
 
+	agents, err := loadShippingAgents(ctx)
+	if err != nil {
+		return err
+	}
+	if len(agents) == 0 {
+		return fmt.Errorf("no shipping agents found in nest users database")
+	}
+
 	tx, err := vesselDB.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -131,11 +139,6 @@ func regenerateVesselDataset(ctx context.Context, vesselCount int) error {
 	}()
 
 	if _, err = tx.ExecContext(ctx, `DELETE FROM vessels`); err != nil {
-		return err
-	}
-
-	agents, err := loadShippingAgents(ctx)
-	if err != nil {
 		return err
 	}
 
@@ -366,4 +369,14 @@ func StartVesselAutoRefreshScheduler() {
 	}()
 
 	log.Printf("[vessel-seed] scheduler enabled: every %s (count=%d)", refreshInterval, vesselCount)
+}
+
+// RefreshVesselDatasetNow reruns the vessel seeding job immediately.
+// It is safe to call after shipping agents exist in the users database.
+func RefreshVesselDatasetNow() error {
+	vesselCount := envIntOrDefault("AUTO_VESSEL_COUNT", 40)
+	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+	defer cancel()
+
+	return regenerateVesselDataset(ctx, vesselCount)
 }

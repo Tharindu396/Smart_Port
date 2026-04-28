@@ -9,6 +9,7 @@ import (
 func VesselRoutes(api *gin.RouterGroup) {
 	router := api.Group("/vessels")
 	router.POST("", handlers.CreateVessel)
+	router.POST("/refresh", handlers.RefreshVesselDataset)
 	router.GET("", handlers.GetAllVessels)
 	router.GET("/:mmsi", handlers.GetVesselByMMSI)
 	router.PUT("/:mmsi", handlers.UpdateVessel)

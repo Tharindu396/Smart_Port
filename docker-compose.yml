@@ -110,6 +110,12 @@ services:
       DB_PASSWORD: 123456
       DB_NAME: smartport
       DB_SSLMODE: disable
+      NEST_DB_HOST: postgres
+      NEST_DB_PORT: 5432
+      NEST_DB_USER: postgres
+      NEST_DB_PASSWORD: 123456
+      NEST_DB_NAME: smartport
+      NEST_DB_SSLMODE: disable
       KAFKA_BROKERS: kafka:29092
       AIS_URL: wss://stream.aisstream.io/v0/stream
       AIS_API_KEY: ${AIS_API_KEY:-878c301b29f41def068d36c7e741d58f1f0c6b88}
@@ -195,7 +201,7 @@ services:
       DATABASE_PASSWORD: 123456
       DATABASE_NAME: smartport
       NODE_ENV: development
-      KAFKA_BROKERS: localhost:9092
+      KAFKA_BROKERS: kafka:29092
       PORT: 3002
       FRONTEND_URL: http://localhost:3000
     networks:
@@ -242,7 +248,8 @@ services:
       NODE_ENV: development
       PORT: 3004
       KAFKA_BROKERS: kafka:29092
-      KAFKA_GROUP_ID: notification-service
+      KAFKA_CLIENT_ID: notification-service
+      KAFKA_GROUP_ID: notification-consumer
       DATABASE_URL: postgres://postgres:123456@postgres:5432/smartport
       DB_HOST: postgres        
       DB_PORT: 5432
@@ -269,6 +276,9 @@ services:
     environment:
       NODE_ENV: development
       NEXT_PUBLIC_API_URL: http://localhost:8001
+      NEXT_PUBLIC_VESSEL_TRACKING_API_URL: http://localhost:8001/api
+      NEXT_PUBLIC_NEST_API_URL: http://localhost:3003
+      NEXT_PUBLIC_BERTHING_API_URL: http://localhost:8002/api/v1
     networks:
       - smartport-network
     restart: unless-stopped
