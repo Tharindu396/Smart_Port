@@ -13,12 +13,20 @@
  * the Berthing Service HTTP API after receiving these thin events.
  */
 
-// Inbound from Berthing Service (thin, key-only events)
+// Inbound from Berthing Service
 
-/** Parsed from the berth-reservations topic message */
-export interface BerthReservationRawEvent {
-  vesselId: string; // Kafka message key
-  signal: 'RESERVED'; // Kafka message value
+/**
+ * Rich JSON event on the berth-reservations topic.
+ * Berthing Service emits this after locking slots so Invoice Service
+ * can create a pending invoice without any HTTP callback.
+ */
+export interface BerthReservedEvent {
+  vessel_id: string;    // visit ID (used as vesselId on Invoice)
+  vessel_name: string;
+  allocated_by: string; // agent ID
+  allocated_at: string; // RFC3339
+  slot_ids: string[];
+  lock_expiry: string;  // RFC3339
 }
 
 /** Parsed from the payment.updates topic message */
@@ -27,42 +35,23 @@ export interface PaymentUpdateRawEvent {
   status: 'SUCCESS' | 'FAILURE'; // Kafka message value
 }
 
-// Berthing Service HTTP API response shapes
-
-/**
- * Shape of one entry from GET /api/v1/allocations/history
- * Matches berthing_service/internal/models/berthing_models.go → AllocationHistoryEntry
- */
-export interface AllocationHistoryEntry {
-  vessel_id: string;
-  vessel_name: string;
-  allocated_by: string;
-  allocated_at: string; // ISO8601 string from Neo4j toString(datetime())
-  slot_ids: string[];
-}
-
-/** Full response envelope from GET /api/v1/allocations/history */
-export interface AllocationHistoryResponse {
-  history: AllocationHistoryEntry[];
-}
-
 // Inbound from Vessel Tracking Service (rich JSON events)
 
-/** Topic: vessel.departed */
+/** Topic: vessel.departed — emitted by Vessel Tracking Service */
 export interface VesselDepartedEvent {
   vessel_id: string;
   vessel_name: string;
-  departed_at: string;
-  docked_at: string;
+  departed_at: string;            // RFC3339
+  docked_at: string;              // RFC3339
   actual_duration_hours: number;
 }
 
-/** Topic: vessel.overstayed */
+/** Topic: vessel.overstayed — emitted by Vessel Tracking Service */
 export interface VesselOverstayedEvent {
   vessel_id: string;
   vessel_name: string;
   overstay_hours: number;
-  detected_at: string;
+  detected_at: string;            // RFC3339
 }
 
 // Outbound events produced by Invoice Service 
@@ -80,21 +69,23 @@ export interface InvoiceCreatedEvent {
 export interface InvoicePaidEvent {
   invoice_id: string;
   vessel_id: string;
+  vessel_name: string;
   paid_at: string;
 }
 
 export interface PenaltyAppliedEvent {
-  invoice_id: string;
-  vessel_id: string;
-  vessel_name: string;
-  penalty_amount: number;
-  overstay_hours: number;
-  new_total: number;
+  visitId: string;                 // vessel_id (= visitId in our saga)
+  vesselName: string;
+  shippingCompanyEmail: string;    // empty until email is stored on invoice
+  penaltyAmount: number;
+  currency: string;
+  reason: string;
 }
 
 export interface InvoiceCancelledEvent {
   invoice_id: string;
   vessel_id: string;
+  vessel_name: string;
   reason: string;
   cancelled_at: string;
 }

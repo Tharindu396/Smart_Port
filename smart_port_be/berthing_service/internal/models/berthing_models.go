@@ -5,6 +5,7 @@ import "time"
 // Vessel represents a ship requesting a berth (internal domain model)
 type Vessel struct {
 	ID             string    `json:"id"`
+	VesselID       string    `json:"vessel_id"`
 	Name           string    `json:"name"`
 	Length         int       `json:"length"`
 	Draft          float64   `json:"draft"`
@@ -39,6 +40,17 @@ func (e VesselArrivalEvent) ToVessel() Vessel {
 		Draft:       e.Dimensions.Depth,
 		AllocatedBy: e.AgentID,
 	}
+}
+
+// BerthReservedEvent is published to berth-reservations so Invoice Service can create a pending invoice
+// without making an HTTP callback to the Berthing Service.
+type BerthReservedEvent struct {
+	VesselID    string   `json:"vessel_id"`
+	VesselName  string   `json:"vessel_name"`
+	AllocatedBy string   `json:"allocated_by"`
+	AllocatedAt string   `json:"allocated_at"` // RFC3339
+	SlotIDs     []string `json:"slot_ids"`
+	LockExpiry  string   `json:"lock_expiry"` // RFC3339
 }
 
 // AllocationConfirmedEvent is published to allocation.confirmed on successful berth reservation.

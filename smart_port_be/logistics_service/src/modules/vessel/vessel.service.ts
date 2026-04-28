@@ -61,7 +61,7 @@ async onModuleInit() {
 async remove(id: string): Promise<void> {
   await this.visitRepository.delete(id);
 }
-async updateStatus(id: string, status: 'ALLOCATED' | 'REJECTED' | 'CANCELLED'): Promise<VesselVisit> {
+async updateStatus(id: string, status: 'ALLOCATED' | 'REJECTED' | 'CANCELLED' | 'CONFIRMED'): Promise<VesselVisit> {
   const visit = await this.findOne(id);
   visit.status = status;
   return await this.visitRepository.save(visit);

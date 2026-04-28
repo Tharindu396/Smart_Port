@@ -55,13 +55,21 @@ func (s *Service) AllocateBerth(ctx context.Context, vessel models.Vessel) ([]st
 		return nil, fmt.Errorf("failed to secure temporary lock: %v", err)
 	}
 
-	// 3. Notify Invoice Service so it can create a pending invoice
-	if emitErr := s.producer.EmitBerthReserved(ctx, vessel.ID, slots); emitErr != nil {
+	// 3. Notify Invoice Service so it can create a pending invoice (rich JSON — no HTTP callback needed)
+	now := time.Now().UTC()
+	lockExpiry := now.Add(30 * time.Minute).Format(time.RFC3339)
+	if emitErr := s.producer.EmitBerthReserved(ctx, models.BerthReservedEvent{
+		VesselID:    vessel.ID,
+		VesselName:  vessel.Name,
+		AllocatedBy: vessel.AllocatedBy,
+		AllocatedAt: now.Format(time.RFC3339),
+		SlotIDs:     slots,
+		LockExpiry:  lockExpiry,
+	}); emitErr != nil {
 		fmt.Printf("⚠️ Failed to emit berth-reservations for %s: %v\n", vessel.ID, emitErr)
 	}
 
 	// 4. Notify Notification Service + Logistics Service of the confirmed allocation
-	lockExpiry := time.Now().UTC().Add(30 * time.Minute).Format(time.RFC3339)
 	if emitErr := s.producer.EmitAllocationConfirmed(ctx, models.AllocationConfirmedEvent{
 		VisitID:    vessel.ID,
 		VesselName: vessel.Name,

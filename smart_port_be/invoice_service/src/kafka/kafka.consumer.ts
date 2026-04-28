@@ -4,7 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { Consumer, Kafka, EachMessagePayload } from 'kafkajs';
 import { InvoiceService } from '../invoice/invoice.service';
 import { KAFKA_TOPICS_INBOUND } from './kafka.topics';
-import { VesselDepartedEvent, VesselOverstayedEvent } from './kafka.events';
+import { BerthReservedEvent, VesselDepartedEvent, VesselOverstayedEvent } from './kafka.events';
 
 @Injectable()
 export class KafkaConsumerService implements OnModuleInit, OnModuleDestroy {
@@ -39,7 +39,7 @@ export class KafkaConsumerService implements OnModuleInit, OnModuleDestroy {
     });
 
     this.logger.log('Kafka Consumer started. Listening on:');
-    this.logger.log(`    ${KAFKA_TOPICS_INBOUND.BERTH_RESERVATIONS}  ← Go emits key=vesselID, value="RESERVED"`);
+    this.logger.log(`    ${KAFKA_TOPICS_INBOUND.BERTH_RESERVATIONS}  ← Berthing emits rich JSON BerthReservedEvent`);
     this.logger.log(`    ${KAFKA_TOPICS_INBOUND.PAYMENT_UPDATES}     ← Go emits key=vesselID, value="SUCCESS"|"FAILURE"`);
     this.logger.log(`    ${KAFKA_TOPICS_INBOUND.VESSEL_DEPARTED}     ← Tracking emits JSON`);
     this.logger.log(`    ${KAFKA_TOPICS_INBOUND.VESSEL_OVERSTAYED}   ← Tracking emits JSON`);
@@ -71,14 +71,11 @@ export class KafkaConsumerService implements OnModuleInit, OnModuleDestroy {
     try {
       switch (topic) {
 
-        // berth-reservations 
-        // Go emits: key = vesselID, value = "RESERVED"
+        // berth-reservations
+        // Berthing emits: key = vessel_id (visit ID), value = BerthReservedEvent JSON
         case KAFKA_TOPICS_INBOUND.BERTH_RESERVATIONS: {
-          if (value.trim() === 'RESERVED') {
-            await this.invoiceService.handleBerthReserved(key);
-          } else {
-            this.logger.warn(`Unknown signal on berth-reservations: "${value}"`);
-          }
+          const event: BerthReservedEvent = JSON.parse(value);
+          await this.invoiceService.handleBerthReserved(event);
           break;
         }
 

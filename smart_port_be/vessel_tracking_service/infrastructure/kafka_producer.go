@@ -15,18 +15,19 @@ type KafkaProducer struct {
 
 // VesselDepartedEvent represents a vessel departing from berth
 type VesselDepartedEvent struct {
-	VesselID  string  `json:"vessel_id"`
-	Timestamp int64   `json:"timestamp"`
-	Latitude  float64 `json:"latitude"`
-	Longitude float64 `json:"longitude"`
+	VesselID            string  `json:"vessel_id"`
+	VesselName          string  `json:"vessel_name"`
+	DepartedAt          string  `json:"departed_at"`            // RFC3339
+	DockedAt            string  `json:"docked_at"`              // RFC3339
+	ActualDurationHours float64 `json:"actual_duration_hours"`
 }
 
 // VesselOverstayedEvent represents a vessel overstaying its berth slot
 type VesselOverstayedEvent struct {
 	VesselID      string  `json:"vessel_id"`
-	Timestamp     int64   `json:"timestamp"`
-	CheckoutTime  int64   `json:"checkout_time"`
+	VesselName    string  `json:"vessel_name"`
 	OverstayHours float64 `json:"overstay_hours"`
+	DetectedAt    string  `json:"detected_at"` // RFC3339
 }
 
 func NewKafkaProducer(brokers []string) *KafkaProducer {

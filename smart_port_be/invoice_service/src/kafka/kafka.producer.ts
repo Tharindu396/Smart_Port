@@ -44,8 +44,8 @@ export class KafkaProducerService implements OnModuleInit, OnModuleDestroy {
   }
 
   async emitPenaltyApplied(event: PenaltyAppliedEvent): Promise<void> {
-    await this.send(KAFKA_TOPICS_OUTBOUND.PENALTY_APPLIED, event.vessel_id, event);
-    this.logger.log(`Emitted invoice.penalty_applied for vessel ${event.vessel_id}, penalty $${event.penalty_amount}`);
+    await this.send(KAFKA_TOPICS_OUTBOUND.PENALTY_APPLIED, event.visitId, event);
+    this.logger.log(`Emitted invoice.penalty_applied for vessel ${event.visitId}, penalty $${event.penaltyAmount}`);
   }
 
   async emitInvoiceCancelled(event: InvoiceCancelledEvent): Promise<void> {

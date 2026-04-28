@@ -8,9 +8,9 @@ import { Repository } from 'typeorm';
 import { Invoice, InvoiceStatus, PaymentStatus } from './entities/invoice.entity';
 import { InvoiceLineItem } from './entities/invoice-line-item.entity';
 import { TariffService } from './tariff.service';
-import { BerthingClient } from './berthing.client';
 import { KafkaProducerService } from '../kafka/kafka.producer';
 import {
+  BerthReservedEvent,
   VesselDepartedEvent,
   VesselOverstayedEvent,
 } from '../kafka/kafka.events';
@@ -27,7 +27,6 @@ export class InvoiceService {
     private readonly lineItemRepo: Repository<InvoiceLineItem>,
 
     private readonly tariffService: TariffService,
-    private readonly berthingClient: BerthingClient,
     private readonly kafkaProducer: KafkaProducerService,
   ) {}
 
@@ -35,48 +34,33 @@ export class InvoiceService {
 
   // HANDLER 1: berth-reservations topic
 
-  async handleBerthReserved(vesselId: string): Promise<void> {
-    this.logger.log(`[berth-reservations] vessel=${vesselId} signal=RESERVED`);
+  async handleBerthReserved(event: BerthReservedEvent): Promise<void> {
+    this.logger.log(`[berth-reservations] vessel=${event.vessel_id} name=${event.vessel_name}`);
 
     // Guard: skip if a pending invoice already exists for this vessel
     const existing = await this.invoiceRepo.findOne({
-      where: { vesselId, status: InvoiceStatus.PENDING },
+      where: { vesselId: event.vessel_id, status: InvoiceStatus.PENDING },
     });
     if (existing) {
       this.logger.warn(
-        `Invoice already exists for vessel ${vesselId} (id=${existing.id}) — skipping duplicate`,
+        `Invoice already exists for vessel ${event.vessel_id} (id=${existing.id}) — skipping duplicate`,
       );
       return;
     }
 
-    // Fetch full allocation details from Berthing Service HTTP API
-    // Retry up to 3 times with a short delay — the history write may lag slightly
-    const allocation = await this.retryFetchAllocation(vesselId, 3, 1500);
-
-    if (!allocation) {
-      this.logger.error(
-        `Could not fetch allocation for vessel ${vesselId} after retries. Invoice NOT created.`,
-      );
-      return;
-    }
-
-    // slot_ids gives us slot count. The history entry doesn't include stay_duration,
-    // so we use a configurable default — the Finance Officer can adjust it later via API.
-    // In production the Logistics Service would publish this detail.
-    const slotCount = allocation.slot_ids.length;
-    const stayDurationHours = 24; // sensible default; overridden when vessel.departed fires
-
+    const slotCount = event.slot_ids.length;
+    const stayDurationHours = 24; // default; refined when vessel.departed fires
     const tariff = this.tariffService.calculateInitialCharges(slotCount, stayDurationHours);
 
-    // Payment window matches the 30-min Neo4j lock
-    const allocatedAt = new Date(allocation.allocated_at);
-    const dueDate = new Date(allocatedAt.getTime() + 30 * 60 * 1000);
+    // Due date aligns with the 30-min Neo4j lock expiry
+    const allocatedAt = new Date(event.allocated_at);
+    const dueDate = new Date(event.lock_expiry);
 
     const invoice = this.invoiceRepo.create({
-      vesselId: allocation.vessel_id,
-      vesselName: allocation.vessel_name,
-      allocatedBy: allocation.allocated_by,
-      slotIds: allocation.slot_ids,
+      vesselId: event.vessel_id,
+      vesselName: event.vessel_name,
+      allocatedBy: event.allocated_by,
+      slotIds: event.slot_ids,
       slotCount,
       stayDurationHours,
       arrivalPlanned: allocatedAt,
@@ -99,7 +83,7 @@ export class InvoiceService {
     await this.lineItemRepo.save(lineItemEntities);
 
     this.logger.log(
-      `Invoice ${saved.id} created — vessel=${vesselId}, slots=${slotCount}, total=$${tariff.totalAmount} USD`,
+      `Invoice ${saved.id} created — vessel=${event.vessel_id}, slots=${slotCount}, total=$${tariff.totalAmount} USD`,
     );
 
     await this.kafkaProducer.emitInvoiceCreated({
@@ -130,6 +114,7 @@ export class InvoiceService {
     await this.kafkaProducer.emitInvoicePaid({
       invoice_id: invoice.id,
       vessel_id: vesselId,
+      vessel_name: invoice.vesselName,
       paid_at: invoice.paidAt.toISOString(),
     });
   }
@@ -150,6 +135,7 @@ export class InvoiceService {
     await this.kafkaProducer.emitInvoiceCancelled({
       invoice_id: invoice.id,
       vessel_id: vesselId,
+      vessel_name: invoice.vesselName,
       reason: 'Payment failure',
       cancelled_at: new Date().toISOString(),
     });
@@ -221,12 +207,12 @@ export class InvoiceService {
     );
 
     await this.kafkaProducer.emitPenaltyApplied({
-      invoice_id: invoice.id,
-      vessel_id: event.vessel_id,
-      vessel_name: event.vessel_name,
-      penalty_amount: penaltyAmount,
-      overstay_hours: event.overstay_hours,
-      new_total: newTotal,
+      visitId: event.vessel_id,
+      vesselName: event.vessel_name,
+      shippingCompanyEmail: '',   // not stored on invoice; email notifications skipped until added
+      penaltyAmount,
+      currency: invoice.currency,
+      reason: `Overstay penalty of $${penaltyAmount.toFixed(2)} for ${event.overstay_hours.toFixed(1)}h past scheduled departure`,
     });
   }
 
@@ -265,22 +251,4 @@ export class InvoiceService {
     return invoice;
   }
 
-  private async retryFetchAllocation(
-    vesselId: string,
-    maxAttempts: number,
-    delayMs: number,
-  ) {
-    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      const entry = await this.berthingClient.findLatestAllocationByVessel(vesselId);
-      if (entry) return entry;
-
-      if (attempt < maxAttempts) {
-        this.logger.warn(
-          `Attempt ${attempt}/${maxAttempts}: allocation not yet visible for ${vesselId}, retrying in ${delayMs}ms`,
-        );
-        await new Promise((r) => setTimeout(r, delayMs));
-      }
-    }
-    return null;
-  }
 }

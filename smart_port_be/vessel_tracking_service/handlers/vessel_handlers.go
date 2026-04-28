@@ -343,14 +343,16 @@ func UpdateVessel(c *gin.Context) {
 	if kafkaProducer != nil {
 		// Publish vessel.departed event if status changed to "departed"
 		if oldVessel.Status != "departed" && vessel.Status == "departed" {
+			departedAt := time.Now().UTC()
+			dockedAt := time.Unix(oldVessel.Timestamp, 0).UTC()
 			departedEvent := infrastructure.VesselDepartedEvent{
-				VesselID:  mmsi,
-				Timestamp: time.Now().Unix(),
-				Latitude:  vessel.Latitude,
-				Longitude: vessel.Longitude,
+				VesselID:            mmsi,
+				VesselName:          oldVessel.Name,
+				DepartedAt:          departedAt.Format(time.RFC3339),
+				DockedAt:            dockedAt.Format(time.RFC3339),
+				ActualDurationHours: departedAt.Sub(dockedAt).Hours(),
 			}
 			if err := kafkaProducer.EmitVesselDeparted(ctx, mmsi, departedEvent); err != nil {
-				// Log the error but don't fail the request
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to emit vessel.departed event"})
 				return
 			}
@@ -358,11 +360,12 @@ func UpdateVessel(c *gin.Context) {
 
 		// Publish vessel.overstayed event if status changed to "overstayed"
 		if oldVessel.Status != "overstayed" && vessel.Status == "overstayed" {
+			detectedAt := time.Now().UTC()
 			overstayedEvent := infrastructure.VesselOverstayedEvent{
 				VesselID:      mmsi,
-				Timestamp:     time.Now().Unix(),
-				CheckoutTime:  oldVessel.Timestamp,
-				OverstayHours: float64(time.Now().Unix()-oldVessel.Timestamp) / 3600.0,
+				VesselName:    oldVessel.Name,
+				OverstayHours: float64(detectedAt.Unix()-oldVessel.Timestamp) / 3600.0,
+				DetectedAt:    detectedAt.Format(time.RFC3339),
 			}
 			if err := kafkaProducer.EmitVesselOverstayed(ctx, mmsi, overstayedEvent); err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to emit vessel.overstayed event"})

@@ -1,13 +1,10 @@
 /**
  * Kafka Topics consumed BY the Invoice Service.
  *
- * These match EXACTLY what the Berthing Service (Go) currently emits — no changes
- * to the berthing service are needed.
- *
  * berth-reservations:
- *   Producer: berthing_service/internal/infrastructure/kafka_producer.go
- *   Key:   vesselID  (string)
- *   Value: "RESERVED" (plain string — not JSON)
+ *   Producer: berthing_service/internal/infrastructure/kafka_producer.go → EmitBerthReserved()
+ *   Key:   vesselID  (visit ID string)
+ *   Value: BerthReservedEvent JSON {vessel_id, vessel_name, allocated_by, allocated_at, slot_ids, lock_expiry}
  *
  * payment.updates:
  *   Producer: berthing_service/internal/infrastructure/kafka_consumer.go

@@ -65,5 +65,15 @@ async delete(@Param('id') id: string) {
     await this.vesselService.updateStatus(data.visitId, 'REJECTED');
   }
 
+  @EventPattern('invoice.paid')
+  async handleInvoicePaid(@Payload() data: any) {
+    console.log(`📥 Logistics: invoice paid for vessel: ${data.vessel_id}`);
+    await this.vesselService.updateStatus(data.vessel_id, 'CONFIRMED');
+  }
 
+  @EventPattern('invoice.cancelled')
+  async handleInvoiceCancelled(@Payload() data: any) {
+    console.warn(`📥 Logistics: invoice cancelled for vessel: ${data.vessel_id}`);
+    await this.vesselService.updateStatus(data.vessel_id, 'CANCELLED');
+  }
 }

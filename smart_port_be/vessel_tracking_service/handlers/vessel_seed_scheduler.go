@@ -255,25 +255,29 @@ func updateVesselStatusAndEmitEvent(ctx context.Context, vessel models.Vessel, s
 
 	switch status {
 	case "departed":
+		departedAt := time.Unix(now, 0).UTC()
+		dockedAt := time.Unix(vessel.Timestamp, 0).UTC()
 		departedEvent := infrastructure.VesselDepartedEvent{
-			VesselID:  vessel.MMSI,
-			Timestamp: now,
-			Latitude:  vessel.Latitude,
-			Longitude: vessel.Longitude,
+			VesselID:            vessel.MMSI,
+			VesselName:          vessel.Name,
+			DepartedAt:          departedAt.Format(time.RFC3339),
+			DockedAt:            dockedAt.Format(time.RFC3339),
+			ActualDurationHours: departedAt.Sub(dockedAt).Hours(),
 		}
 		if err := kafkaProducer.EmitVesselDeparted(ctx, vessel.MMSI, departedEvent); err != nil {
 			return err
 		}
 	case "overstayed":
+		detectedAt := time.Unix(now, 0).UTC()
 		overstayHours := float64(now-vessel.Timestamp) / 3600.0
 		if overstayHours < 0 {
 			overstayHours = 0
 		}
 		overstayedEvent := infrastructure.VesselOverstayedEvent{
 			VesselID:      vessel.MMSI,
-			Timestamp:     now,
-			CheckoutTime:  vessel.Timestamp,
+			VesselName:    vessel.Name,
 			OverstayHours: overstayHours,
+			DetectedAt:    detectedAt.Format(time.RFC3339),
 		}
 		if err := kafkaProducer.EmitVesselOverstayed(ctx, vessel.MMSI, overstayedEvent); err != nil {
 			return err

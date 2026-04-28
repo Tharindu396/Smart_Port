@@ -21,12 +21,17 @@ func NewKafkaProducer(broker string) *KafkaProducer {
 	}
 }
 
-// EmitBerthReserved publishes to berth-reservations so Invoice Service can create an invoice.
-func (p *KafkaProducer) EmitBerthReserved(ctx context.Context, vesselID string, slotIDs []string) error {
+// EmitBerthReserved publishes a rich JSON event to berth-reservations so Invoice Service
+// can create a pending invoice without making an HTTP callback to the Berthing Service.
+func (p *KafkaProducer) EmitBerthReserved(ctx context.Context, event models.BerthReservedEvent) error {
+	payload, err := json.Marshal(event)
+	if err != nil {
+		return err
+	}
 	return p.Writer.WriteMessages(ctx, kafka.Message{
 		Topic: "berth-reservations",
-		Key:   []byte(vesselID),
-		Value: []byte("RESERVED"),
+		Key:   []byte(event.VesselID),
+		Value: payload,
 	})
 }
 
