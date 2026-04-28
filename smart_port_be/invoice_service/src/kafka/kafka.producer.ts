@@ -66,9 +66,43 @@ export class KafkaProducerService implements OnModuleInit, OnModuleDestroy {
           },
         ],
       });
-    } catch (error) {
-      this.logger.error(`Failed to send message to topic ${topic}: ${error.message}`);
-      throw error;
-    }
+    } catch (error: unknown) {
+        const err = error as Error;
+
+        this.logger.error(
+          `Failed to send message to topic ${topic}: ${err.message}`,
+        );
+
+        throw error;
+      }
+  }
+
+  async emitPaymentUpdate(
+    vesselId: string,
+    status: 'SUCCESS' | 'FAILURE',
+  ): Promise<void> {
+    try {
+      await this.producer.send({
+        topic: 'payment.updates',
+        messages: [
+          {
+            key: vesselId,
+            value: status, 
+          },
+        ],
+      });
+
+      this.logger.log(
+        `payment.updates → vessel=${vesselId}, status=${status}`,
+      );
+    } catch (error: unknown) {
+        const err = error as Error;
+
+        this.logger.error(
+          `Failed payment update: ${err.message}`,
+        );
+
+        throw error;
+      }
   }
 }
