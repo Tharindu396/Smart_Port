@@ -1,18 +1,3 @@
-/**
- * What the Berthing Service actually puts on the wire (Go source):
- *
- *   kafka_producer.go → EmitBerthReserved():
- *     Key:   vesselID
- *     Value: "RESERVED"   ← plain string, NOT json
- *
- *   kafka_consumer.go → payment.updates handler:
- *     Key:   vesselID
- *     Value: "SUCCESS" | "FAILURE"  ← plain string
- *
- * So the Invoice Service enriches the data by calling back to
- * the Berthing Service HTTP API after receiving these thin events.
- */
-
 // Inbound from Berthing Service
 
 /**
