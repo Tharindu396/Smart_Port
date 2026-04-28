@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { VesselService } from './vessel.service';
-import { MessagePattern, Payload } from '@nestjs/microservices'; 
+import { EventPattern, Payload } from '@nestjs/microservices';
 import { CreateVisitDto } from './dto/create-visit.dto';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
@@ -53,16 +53,16 @@ async delete(@Param('id') id: string) {
   return this.vesselService.remove(id);
 }
 
-@MessagePattern('berthing.allocated') // Listens for Berthing success
+  @EventPattern('allocation.confirmed')
   async handleBerthAllocated(@Payload() data: any) {
-    console.log(`📥 Logistics received allocation update for Visit: ${data.visitId}`);
-    return await this.vesselService.updateStatus(data.visitId, 'ALLOCATED');
+    console.log(`📥 Logistics: berth confirmed for Visit: ${data.visitId}`);
+    await this.vesselService.updateStatus(data.visitId, 'ALLOCATED');
   }
 
-  @MessagePattern('berthing.failed') // Listens for Berthing failure
+  @EventPattern('allocation.failed')
   async handleBerthFailed(@Payload() data: any) {
-    console.warn(`📥 Logistics received allocation failure for Visit: ${data.visitId}`);
-    return await this.vesselService.updateStatus(data.visitId, 'REJECTED');
+    console.warn(`📥 Logistics: allocation failed for Visit: ${data.visitId} — ${data.reason}`);
+    await this.vesselService.updateStatus(data.visitId, 'REJECTED');
   }
 
 

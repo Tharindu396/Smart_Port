@@ -50,16 +50,18 @@ func (c *KafkaConsumer) Start(ctx context.Context) {
 		switch m.Topic {
 		
 		case "vessel.arrivals":
-			// EVENT 1: Logistics says a ship is coming
-			var vessel models.Vessel
-			if err := json.Unmarshal(m.Value, &vessel); err != nil {
+			// EVENT 1: Logistics says a ship is coming.
+			// Parse the Logistics payload shape, then map to the internal Vessel model.
+			var event models.VesselArrivalEvent
+			if err := json.Unmarshal(m.Value, &event); err != nil {
 				fmt.Printf("⚠️ Failed to parse vessel arrival data: %v\n", err)
 				continue
 			}
-			fmt.Printf("⚓ Logistics: Vessel %s arrival detected. Initiating allocation...\n", vessel.ID)
+			vessel := event.ToVessel()
+			fmt.Printf("⚓ Logistics: Vessel %s arrival detected. Initiating allocation...\n", vessel.Name)
 			_, err := c.service.AllocateBerth(ctx, vessel)
 			if err != nil {
-				fmt.Printf("🛑 Allocation failed for %s: %v\n", vessel.ID, err)
+				fmt.Printf("🛑 Allocation failed for %s: %v\n", vessel.Name, err)
 			}
 
 		case "payment.updates":

@@ -3,6 +3,7 @@ package allocation
 import (
 	"context"
 	"fmt"
+	"time"
 	"smartport/berthing-service/internal/infrastructure"
 	"smartport/berthing-service/internal/models"
 )
@@ -25,13 +26,19 @@ func NewService(repo Repository, producer *infrastructure.KafkaProducer) *Servic
 func (s *Service) AllocateBerth(ctx context.Context, vessel models.Vessel) ([]string, error) {
 	requiredLength := vessel.Length + 1
 
-	// 1. Find the slots (Existing logic)
+	// 1. Find contiguous slots matching the vessel's draft requirement
 	slots, err := s.repo.FindContiguousSlots(ctx, requiredLength, vessel.Draft)
 	if err != nil || len(slots) == 0 {
+		reason := "no suitable berth available for the required dimensions"
+		if emitErr := s.producer.EmitAllocationFailed(ctx, models.AllocationFailedEvent{
+			VisitID: vessel.ID, VesselName: vessel.Name, Reason: reason,
+		}); emitErr != nil {
+			fmt.Printf("⚠️ Failed to emit allocation.failed for %s: %v\n", vessel.ID, emitErr)
+		}
 		return nil, fmt.Errorf("no suitable space found")
 	}
 
-	// 2. Database Change: Place the Temporary Lock (Phase 1 Requirement)
+	// 2. Place the 30-minute PENDING_PAYMENT lock on the chosen slots
 	allocatedBy := vessel.AllocatedBy
 	if allocatedBy == "" {
 		allocatedBy = "system"
@@ -39,7 +46,31 @@ func (s *Service) AllocateBerth(ctx context.Context, vessel models.Vessel) ([]st
 
 	err = s.repo.ReserveSlots(ctx, slots, vessel.ID, vessel.Name, allocatedBy, 30)
 	if err != nil {
+		reason := fmt.Sprintf("failed to secure temporary lock: %v", err)
+		if emitErr := s.producer.EmitAllocationFailed(ctx, models.AllocationFailedEvent{
+			VisitID: vessel.ID, VesselName: vessel.Name, Reason: reason,
+		}); emitErr != nil {
+			fmt.Printf("⚠️ Failed to emit allocation.failed for %s: %v\n", vessel.ID, emitErr)
+		}
 		return nil, fmt.Errorf("failed to secure temporary lock: %v", err)
+	}
+
+	// 3. Notify Invoice Service so it can create a pending invoice
+	if emitErr := s.producer.EmitBerthReserved(ctx, vessel.ID, slots); emitErr != nil {
+		fmt.Printf("⚠️ Failed to emit berth-reservations for %s: %v\n", vessel.ID, emitErr)
+	}
+
+	// 4. Notify Notification Service + Logistics Service of the confirmed allocation
+	lockExpiry := time.Now().UTC().Add(30 * time.Minute).Format(time.RFC3339)
+	if emitErr := s.producer.EmitAllocationConfirmed(ctx, models.AllocationConfirmedEvent{
+		VisitID:    vessel.ID,
+		VesselName: vessel.Name,
+		BerthID:    slots[0],
+		BerthName:  "Berth " + slots[0],
+		AgentEmail: vessel.AgentEmail,
+		LockExpiry: lockExpiry,
+	}); emitErr != nil {
+		fmt.Printf("⚠️ Failed to emit allocation.confirmed for %s: %v\n", vessel.ID, emitErr)
 	}
 
 	return slots, nil
@@ -47,26 +78,19 @@ func (s *Service) AllocateBerth(ctx context.Context, vessel models.Vessel) ([]st
 
 // ResolveDependencies handles FR-2.2 (Dependency Resolution)
 func (s *Service) ResolveDependencies(ctx context.Context, containerID string) (int, error) {
-	// Call the Repo to get the count from the graph
 	moves, err := s.repo.GetDependencyCount(ctx, containerID)
 	if err != nil {
 		return 0, fmt.Errorf("failed to resolve dependencies for %s: %v", containerID, err)
 	}
-
 	return moves, nil
 }
 
-// internal/allocation/service.go
-
-// Add this to your existing Service methods
 func (s *Service) UpdateSlotDepth(ctx context.Context, slotID string, newDepth float64) error {
-	// You can add business logic here later (e.g., "cannot change depth if a ship is parked")
 	return s.repo.UpdateSlotDepth(ctx, slotID, newDepth)
 }
 
 // CompleteAllocationByVessel finalizes the booking when payment is successful
 func (s *Service) CompleteAllocationByVessel(ctx context.Context, vesselID string) error {
-	// 1. We tell the repo to find all slots tagged with this vessel and make them OCCUPIED
 	err := s.repo.ConfirmReservationByVessel(ctx, vesselID)
 	if err != nil {
 		return fmt.Errorf("failed to finalize allocation for %s: %v", vesselID, err)
@@ -76,7 +100,6 @@ func (s *Service) CompleteAllocationByVessel(ctx context.Context, vesselID strin
 
 // CancelAllocationByVessel is the Compensating Transaction for failed payments
 func (s *Service) CancelAllocationByVessel(ctx context.Context, vesselID string) error {
-	// 2. We release any PENDING locks held by this vessel
 	err := s.repo.ReleaseSlotsByVessel(ctx, vesselID)
 	if err != nil {
 		return fmt.Errorf("failed to revert allocation for %s: %v", vesselID, err)
@@ -97,6 +120,5 @@ func (s *Service) GetAllocationHistory(ctx context.Context, limit int) ([]models
 	if limit > 100 {
 		limit = 100
 	}
-
 	return s.repo.GetAllocationHistory(ctx, limit)
 }

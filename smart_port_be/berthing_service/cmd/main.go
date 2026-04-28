@@ -27,7 +27,7 @@ func main() {
 
 	// 3. Kafka Infrastructure
 	// FIXED: Using cfg.KafkaBrokers instead of hardcoded "localhost:9092"
-	producer := infrastructure.NewKafkaProducer(cfg.KafkaBrokers, "berth-reservations")
+	producer := infrastructure.NewKafkaProducer(cfg.KafkaBrokers)
 
 	// 4. Dependency Injection
 	repo := allocation.NewNeo4jRepository(driver)
