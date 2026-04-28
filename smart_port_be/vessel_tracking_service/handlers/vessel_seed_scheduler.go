@@ -8,6 +8,9 @@ import (
 	"os"
 	"strconv"
 	"time"
+
+	"go-server/infrastructure"
+	"go-server/models"
 )
 
 var (
@@ -112,6 +115,157 @@ func regenerateVesselDataset(ctx context.Context, vesselCount int) error {
 	}
 
 	return nil
+}
+
+func findDockedVesselsForTransition(ctx context.Context, olderThan time.Time) ([]models.Vessel, error) {
+	if vesselDB == nil {
+		return nil, fmt.Errorf("database is not initialized")
+	}
+
+	if err := ensureVesselsTable(ctx); err != nil {
+		return nil, err
+	}
+
+	rows, err := vesselDB.QueryContext(ctx, `
+		SELECT mmsi, name, length, draft, status, latitude, longitude, speed, heading, timestamp
+		FROM vessels
+		WHERE status = 'docked' AND timestamp <= $1
+	`, olderThan.Unix())
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	vessels := make([]models.Vessel, 0)
+	for rows.Next() {
+		var vessel models.Vessel
+		if err := rows.Scan(
+			&vessel.MMSI,
+			&vessel.Name,
+			&vessel.Length,
+			&vessel.Draft,
+			&vessel.Status,
+			&vessel.Latitude,
+			&vessel.Longitude,
+			&vessel.Speed,
+			&vessel.Heading,
+			&vessel.Timestamp,
+		); err != nil {
+			return nil, err
+		}
+		vessels = append(vessels, vessel)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return vessels, nil
+}
+
+func updateVesselStatusAndEmitEvent(ctx context.Context, vessel models.Vessel, status string, rng *rand.Rand) error {
+	if vesselDB == nil {
+		return fmt.Errorf("database is not initialized")
+	}
+
+	now := time.Now().Unix()
+	result, err := vesselDB.ExecContext(ctx, `
+		UPDATE vessels
+		SET status = $2,
+		    timestamp = $3
+		WHERE mmsi = $1
+	`, vessel.MMSI, status, now)
+	if err != nil {
+		return err
+	}
+
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
+		return fmt.Errorf("vessel %s not found", vessel.MMSI)
+	}
+
+	if kafkaProducer == nil {
+		return nil
+	}
+
+	switch status {
+	case "departed":
+		departedEvent := infrastructure.VesselDepartedEvent{
+			VesselID:  vessel.MMSI,
+			Timestamp: now,
+			Latitude:  vessel.Latitude,
+			Longitude: vessel.Longitude,
+		}
+		if err := kafkaProducer.EmitVesselDeparted(ctx, vessel.MMSI, departedEvent); err != nil {
+			return err
+		}
+	case "overstayed":
+		overstayHours := float64(now-vessel.Timestamp) / 3600.0
+		if overstayHours < 0 {
+			overstayHours = 0
+		}
+		overstayedEvent := infrastructure.VesselOverstayedEvent{
+			VesselID:      vessel.MMSI,
+			Timestamp:     now,
+			CheckoutTime:  vessel.Timestamp,
+			OverstayHours: overstayHours,
+		}
+		if err := kafkaProducer.EmitVesselOverstayed(ctx, vessel.MMSI, overstayedEvent); err != nil {
+			return err
+		}
+	default:
+		return fmt.Errorf("unsupported transition status %q", status)
+	}
+
+	return nil
+}
+
+// StartDockedStatusTransitionScheduler randomly flips docked vessels to departed or overstayed
+// after they have remained docked for the configured delay.
+func StartDockedStatusTransitionScheduler() {
+	transitionDelayMinutes := envIntOrDefault("DOCKED_STATUS_DELAY_MINUTES", 5)
+	checkIntervalMinutes := envIntOrDefault("DOCKED_STATUS_CHECK_MINUTES", 1)
+
+	transitionDelay := time.Duration(transitionDelayMinutes) * time.Minute
+	checkInterval := time.Duration(checkIntervalMinutes) * time.Minute
+
+	go func() {
+		ticker := time.NewTicker(checkInterval)
+		defer ticker.Stop()
+
+		rng := rand.New(rand.NewSource(time.Now().UnixNano()))
+
+		for range ticker.C {
+			ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+			vessels, err := findDockedVesselsForTransition(ctx, time.Now().Add(-transitionDelay))
+			if err != nil {
+				log.Printf("[docked-transition] failed to load docked vessels: %v", err)
+				cancel()
+				continue
+			}
+
+			for _, vessel := range vessels {
+				status := "departed"
+				if rng.Intn(2) == 0 {
+					status = "overstayed"
+				}
+
+				if err := updateVesselStatusAndEmitEvent(ctx, vessel, status, rng); err != nil {
+					log.Printf("[docked-transition] vessel %s -> %s failed: %v", vessel.MMSI, status, err)
+					continue
+				}
+
+				log.Printf("[docked-transition] vessel %s -> %s", vessel.MMSI, status)
+			}
+
+			cancel()
+		}
+	}()
+
+	log.Printf("[docked-transition] scheduler enabled: every %s after %s docked", checkInterval, transitionDelay)
 }
 
 // StartVesselAutoRefreshScheduler seeds mock vessel data immediately
