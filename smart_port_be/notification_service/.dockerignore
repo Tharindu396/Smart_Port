@@ -9,3 +9,8 @@ dist
 *.log
 coverage
 .nyc_output
+
+.env
+.env.local
+.env.development
+.env.production

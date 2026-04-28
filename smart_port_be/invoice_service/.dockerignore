@@ -1,9 +1,3 @@
-main
-vendor
-*.test
-.git
-.vscode
-
 .env
 .env.local
 .env.development

@@ -23,12 +23,12 @@ func InitPostgres() *sql.DB {
 
     db, err := sql.Open("postgres", dsn)
     if err != nil {
-        log.Fatal("Failed to connect to DB:", err)
+        log.Println ("Failed to connect to DB:", err)
     }
 
     err = db.Ping()
     if err != nil {
-        log.Fatal("DB not reachable:", err)
+        log.Println ("DB not reachable:", err)
     }
 
     fmt.Println("✅ Connected to PostgreSQL")

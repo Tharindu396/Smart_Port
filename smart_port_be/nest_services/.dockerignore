@@ -11,3 +11,8 @@ pnpm-debug.log*
 Dockerfile
 .dockerignore
 README.md
+
+.env
+.env.local
+.env.development
+.env.production
