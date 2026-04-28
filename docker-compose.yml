@@ -22,19 +22,6 @@ services:
     networks:
       - smartport-network
 
-  redis:
-    image: redis:7-alpine
-    container_name: smartport-redis
-    ports:
-      - '6379:6379'
-    healthcheck:
-      test: ['CMD', 'redis-cli', 'ping']
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - smartport-network
-
   kafka:
     image: confluentinc/cp-kafka:7.5.0
     container_name: smartport-kafka
@@ -87,8 +74,6 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      redis:
-        condition: service_healthy
       kafka:
         condition: service_healthy
     environment:
@@ -99,7 +84,6 @@ services:
       DB_PASSWORD: 123456
       DB_NAME: smartport
       DB_SSLMODE: disable
-      REDIS_ADDR: redis:6379
       KAFKA_BROKERS: kafka:29092
       AIS_URL: wss://stream.aisstream.io/v0/stream
       AIS_API_KEY: ${AIS_API_KEY:-878c301b29f41def068d36c7e741d58f1f0c6b88}
