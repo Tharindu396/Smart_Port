@@ -1,10 +1,13 @@
 package main
 
 import (
+	"context"
 	"go-server/config"
 	"go-server/handlers"
+	"go-server/infrastructure"
 	"go-server/routes"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/gin-contrib/cors"
@@ -21,9 +24,23 @@ func main() {
 	kafkaProducer := config.InitKafkaProducer()
 	defer config.CloseKafkaProducer()
 
+	kafkaBrokers := os.Getenv("KAFKA_BROKERS")
+	if kafkaBrokers == "" {
+		kafkaBrokers = "localhost:9092"
+	}
+	brokers := strings.Split(kafkaBrokers, ",")
+	for i, broker := range brokers {
+		brokers[i] = strings.TrimSpace(broker)
+	}
+
 	handlers.SetVesselDB(db)
 	handlers.SetKafkaProducer(kafkaProducer)
 	handlers.StartVesselAutoRefreshScheduler()
+	handlers.StartDockedStatusTransitionScheduler()
+
+	kafkaConsumer := infrastructure.NewKafkaConsumer(brokers, "vessel-tracking-service-group", handlers.UpdateVesselStatusByMMSI)
+	go kafkaConsumer.Start(context.Background())
+	defer kafkaConsumer.Close()
 
 	r := gin.Default()
 

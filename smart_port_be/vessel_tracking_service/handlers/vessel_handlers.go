@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -24,6 +25,39 @@ func SetKafkaProducer(producer *infrastructure.KafkaProducer) {
 	kafkaProducer = producer
 }
 
+func UpdateVesselStatusByMMSI(mmsi string, status string) error {
+	if vesselDB == nil {
+		return fmt.Errorf("database is not initialized")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := ensureVesselsTable(ctx); err != nil {
+		return err
+	}
+
+	result, err := vesselDB.ExecContext(ctx, `
+		UPDATE vessels
+		SET status = $2,
+		    timestamp = $3
+		WHERE mmsi = $1
+	`, mmsi, status, time.Now().Unix())
+	if err != nil {
+		return err
+	}
+
+	affected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if affected == 0 {
+		return fmt.Errorf("vessel %s not found", mmsi)
+	}
+
+	return nil
+}
+
 func ensureVesselsTable(ctx context.Context) error {
 	query := `
 		CREATE TABLE IF NOT EXISTS vessels (
@@ -36,11 +70,27 @@ func ensureVesselsTable(ctx context.Context) error {
 			longitude DOUBLE PRECISION,
 			speed DOUBLE PRECISION,
 			heading DOUBLE PRECISION,
-			timestamp BIGINT
+			timestamp BIGINT,
+			shipping_agent_id TEXT,
+			shipping_agent_email TEXT
 		)
 	`
 
 	_, err := vesselDB.ExecContext(ctx, query)
+	if err != nil {
+		return err
+	}
+
+	alterQueries := []string{
+		`ALTER TABLE vessels ADD COLUMN IF NOT EXISTS shipping_agent_id TEXT`,
+		`ALTER TABLE vessels ADD COLUMN IF NOT EXISTS shipping_agent_email TEXT`,
+	}
+
+	for _, alterQuery := range alterQueries {
+		if _, err = vesselDB.ExecContext(ctx, alterQuery); err != nil {
+			return err
+		}
+	}
 	return err
 }
 
@@ -70,8 +120,8 @@ func CreateVessel(c *gin.Context) {
 	}
 
 	query := `
-		INSERT INTO vessels (mmsi, name, length, draft, status, latitude, longitude, speed, heading, timestamp)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		INSERT INTO vessels (mmsi, name, length, draft, status, latitude, longitude, speed, heading, timestamp, shipping_agent_id, shipping_agent_email)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 	`
 
 	_, err := vesselDB.ExecContext(
@@ -87,6 +137,8 @@ func CreateVessel(c *gin.Context) {
 		vessel.Speed,
 		vessel.Heading,
 		vessel.Timestamp,
+		vessel.ShippingAgentID,
+		vessel.ShippingAgentEmail,
 	)
 	if err != nil {
 		c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
@@ -111,7 +163,7 @@ func GetAllVessels(c *gin.Context) {
 	}
 
 	rows, err := vesselDB.QueryContext(ctx, `
-		SELECT mmsi, name, length, draft, status, latitude, longitude, speed, heading, timestamp
+		SELECT mmsi, name, length, draft, status, latitude, longitude, speed, heading, timestamp, shipping_agent_id, shipping_agent_email
 		FROM vessels
 	`)
 	if err != nil {
@@ -134,6 +186,8 @@ func GetAllVessels(c *gin.Context) {
 			&vessel.Speed,
 			&vessel.Heading,
 			&vessel.Timestamp,
+			&vessel.ShippingAgentID,
+			&vessel.ShippingAgentEmail,
 		); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
@@ -167,7 +221,7 @@ func GetVesselByMMSI(c *gin.Context) {
 	var vessel models.Vessel
 	err := vesselDB.QueryRowContext(
 		ctx,
-		`SELECT mmsi, name, length, draft, status, latitude, longitude, speed, heading, timestamp FROM vessels WHERE mmsi = $1`,
+		`SELECT mmsi, name, length, draft, status, latitude, longitude, speed, heading, timestamp, shipping_agent_id, shipping_agent_email FROM vessels WHERE mmsi = $1`,
 		mmsi,
 	).Scan(
 		&vessel.MMSI,
@@ -180,6 +234,8 @@ func GetVesselByMMSI(c *gin.Context) {
 		&vessel.Speed,
 		&vessel.Heading,
 		&vessel.Timestamp,
+		&vessel.ShippingAgentID,
+		&vessel.ShippingAgentEmail,
 	)
 
 	if err == sql.ErrNoRows {
@@ -219,7 +275,7 @@ func UpdateVessel(c *gin.Context) {
 	var oldVessel models.Vessel
 	err := vesselDB.QueryRowContext(
 		ctx,
-		`SELECT mmsi, name, length, draft, status, latitude, longitude, speed, heading, timestamp FROM vessels WHERE mmsi = $1`,
+		`SELECT mmsi, name, length, draft, status, latitude, longitude, speed, heading, timestamp, shipping_agent_id, shipping_agent_email FROM vessels WHERE mmsi = $1`,
 		mmsi,
 	).Scan(
 		&oldVessel.MMSI,
@@ -232,6 +288,8 @@ func UpdateVessel(c *gin.Context) {
 		&oldVessel.Speed,
 		&oldVessel.Heading,
 		&oldVessel.Timestamp,
+		&oldVessel.ShippingAgentID,
+		&oldVessel.ShippingAgentEmail,
 	)
 
 	if err == sql.ErrNoRows {
@@ -245,7 +303,8 @@ func UpdateVessel(c *gin.Context) {
 
 	query := `
 		UPDATE vessels
-		SET name = $2, length = $3, draft = $4, status = $5, latitude = $6, longitude = $7, speed = $8, heading = $9, timestamp = $10
+		SET name = $2, length = $3, draft = $4, status = $5, latitude = $6, longitude = $7, speed = $8, heading = $9, timestamp = $10,
+		    shipping_agent_id = $11, shipping_agent_email = $12
 		WHERE mmsi = $1
 	`
 
@@ -262,6 +321,8 @@ func UpdateVessel(c *gin.Context) {
 		vessel.Speed,
 		vessel.Heading,
 		vessel.Timestamp,
+		vessel.ShippingAgentID,
+		vessel.ShippingAgentEmail,
 	)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -283,10 +344,12 @@ func UpdateVessel(c *gin.Context) {
 		// Publish vessel.departed event if status changed to "departed"
 		if oldVessel.Status != "departed" && vessel.Status == "departed" {
 			departedEvent := infrastructure.VesselDepartedEvent{
-				VesselID:  mmsi,
-				Timestamp: time.Now().Unix(),
-				Latitude:  vessel.Latitude,
-				Longitude: vessel.Longitude,
+				VesselID:           mmsi,
+				Timestamp:          time.Now().Unix(),
+				Latitude:           vessel.Latitude,
+				Longitude:          vessel.Longitude,
+				VesselName:         vessel.Name,
+				ShippingAgentEmail: vessel.ShippingAgentEmail,
 			}
 			if err := kafkaProducer.EmitVesselDeparted(ctx, mmsi, departedEvent); err != nil {
 				// Log the error but don't fail the request
@@ -298,10 +361,12 @@ func UpdateVessel(c *gin.Context) {
 		// Publish vessel.overstayed event if status changed to "overstayed"
 		if oldVessel.Status != "overstayed" && vessel.Status == "overstayed" {
 			overstayedEvent := infrastructure.VesselOverstayedEvent{
-				VesselID:      mmsi,
-				Timestamp:     time.Now().Unix(),
-				CheckoutTime:  oldVessel.Timestamp,
-				OverstayHours: float64(time.Now().Unix()-oldVessel.Timestamp) / 3600.0,
+				VesselID:           mmsi,
+				Timestamp:          time.Now().Unix(),
+				CheckoutTime:       oldVessel.Timestamp,
+				OverstayHours:      float64(time.Now().Unix()-oldVessel.Timestamp) / 3600.0,
+				VesselName:         vessel.Name,
+				ShippingAgentEmail: vessel.ShippingAgentEmail,
 			}
 			if err := kafkaProducer.EmitVesselOverstayed(ctx, mmsi, overstayedEvent); err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to emit vessel.overstayed event"})

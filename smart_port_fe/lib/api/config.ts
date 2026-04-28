@@ -9,6 +9,8 @@ export const apiConfig = {
     process.env.NEXT_PUBLIC_INVOICE_API_URL ?? "http://localhost:5004/api/v1",
   nestServicesBaseUrl:
     process.env.NEXT_PUBLIC_NEST_API_URL ?? "http://localhost:8000",
+  notificationServiceBaseUrl:
+    process.env.NEXT_PUBLIC_NOTIFICATION_API_URL ?? "http://localhost:3004",
 };
 
 export type ApiServiceKey = keyof typeof apiConfig;

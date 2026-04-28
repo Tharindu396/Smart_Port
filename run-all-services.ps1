@@ -13,7 +13,13 @@ param(
 )
 
 $ErrorActionPreference = 'Continue'
-$projectRoot = Split-Path -Parent $MyInvocation.MyCommandPath
+$projectRoot = if ($PSScriptRoot) {
+    $PSScriptRoot
+} elseif ($MyInvocation.MyCommandPath) {
+    Split-Path -Parent $MyInvocation.MyCommandPath
+} else {
+    (Get-Location).Path
+}
 $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
 
 # Color codes for output
@@ -121,13 +127,13 @@ function Check-Prerequisites {
         exit 1
     }
     
-    Write-Log "✓ Node.js $(node --version)" -level 'Success'
-    Write-Log "✓ npm $(npm --version)" -level 'Success'
+    Write-Log "[OK] Node.js $(node --version)" -level 'Success'
+    Write-Log "[OK] npm $(npm --version)" -level 'Success'
     
     if ($false -in @($goInstalled)) {
         Write-Log "WARNING: Go not found. Go services won't run." -level 'Warning'
     } else {
-        Write-Log "✓ Go $(go version)" -level 'Success'
+        Write-Log "[OK] Go $(go version)" -level 'Success'
     }
 }
 
@@ -153,7 +159,7 @@ function Install-Dependencies {
                 return $false
             }
             Pop-Location
-            Write-Log "✓ Dependencies installed for $($config['name'])" -level 'Success'
+            Write-Log "[OK] Dependencies installed for $($config['name'])" -level 'Success'
         }
     }
     
@@ -202,7 +208,7 @@ function Start-Service {
     
     $processRegistry[$serviceName] = $job.Id
     
-    Write-Log "✓ $($config['name']) started (Job ID: $($job.Id))" -level 'Success'
+    Write-Log "[OK] $($config['name']) started (Job ID: $($job.Id))" -level 'Success'
     Write-Log "  Logs: $logFile" -level 'Info'
 }
 
@@ -223,7 +229,7 @@ function Stop-Service {
     Remove-Job -Id $jobId -ErrorAction SilentlyContinue
     
     $processRegistry.Remove($serviceName)
-    Write-Log "✓ $($config['name']) stopped" -level 'Success'
+    Write-Log "[OK] $($config['name']) stopped" -level 'Success'
 }
 
 function Stop-AllServices {
@@ -243,9 +249,9 @@ function Show-Status {
     foreach ($serviceName in $services) {
         $config = $serviceConfigs[$serviceName]
         $status = if ($processRegistry.ContainsKey($serviceName)) {
-            "✓ Running (Port: $($config['port']))"
+            "[RUNNING] (Port: $($config['port']))"
         } else {
-            "✗ Stopped"
+            "[STOPPED]"
         }
         
         Write-Host "  [$status] $($config['name'])"
