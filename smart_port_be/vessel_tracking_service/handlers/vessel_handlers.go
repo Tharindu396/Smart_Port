@@ -344,10 +344,12 @@ func UpdateVessel(c *gin.Context) {
 		// Publish vessel.departed event if status changed to "departed"
 		if oldVessel.Status != "departed" && vessel.Status == "departed" {
 			departedEvent := infrastructure.VesselDepartedEvent{
-				VesselID:  mmsi,
-				Timestamp: time.Now().Unix(),
-				Latitude:  vessel.Latitude,
-				Longitude: vessel.Longitude,
+				VesselID:           mmsi,
+				Timestamp:          time.Now().Unix(),
+				Latitude:           vessel.Latitude,
+				Longitude:          vessel.Longitude,
+				VesselName:         vessel.Name,
+				ShippingAgentEmail: vessel.ShippingAgentEmail,
 			}
 			if err := kafkaProducer.EmitVesselDeparted(ctx, mmsi, departedEvent); err != nil {
 				// Log the error but don't fail the request
@@ -359,10 +361,12 @@ func UpdateVessel(c *gin.Context) {
 		// Publish vessel.overstayed event if status changed to "overstayed"
 		if oldVessel.Status != "overstayed" && vessel.Status == "overstayed" {
 			overstayedEvent := infrastructure.VesselOverstayedEvent{
-				VesselID:      mmsi,
-				Timestamp:     time.Now().Unix(),
-				CheckoutTime:  oldVessel.Timestamp,
-				OverstayHours: float64(time.Now().Unix()-oldVessel.Timestamp) / 3600.0,
+				VesselID:           mmsi,
+				Timestamp:          time.Now().Unix(),
+				CheckoutTime:       oldVessel.Timestamp,
+				OverstayHours:      float64(time.Now().Unix()-oldVessel.Timestamp) / 3600.0,
+				VesselName:         vessel.Name,
+				ShippingAgentEmail: vessel.ShippingAgentEmail,
 			}
 			if err := kafkaProducer.EmitVesselOverstayed(ctx, mmsi, overstayedEvent); err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to emit vessel.overstayed event"})
