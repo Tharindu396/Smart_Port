@@ -23,7 +23,7 @@ export class EventsConsumer {
     @Payload() event: VesselOverstayedEvent,
   ): Promise<void> {
     this.logger.warn(
-      `[VESSEL_OVERSTAYED] ${event.vesselName} overdue by ${event.overdueByMinutes} min`,
+      `[VESSEL_OVERSTAYED] ${event.VesselName} overdue by ${event.overdueByMinutes} min`,
     );
 
 
@@ -35,7 +35,7 @@ export class EventsConsumer {
       ).toFixed(2);
 
       const template = TemplateLoader.load(KAFKA_EVENTS.VESSEL_OVERSTAYED, {
-        vesselName: event.vesselName,
+        vesselName: event.VesselName,
         VesselID: event.VesselID,
         overdueHours,
         estimatedPenalty,
