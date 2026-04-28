@@ -8,9 +8,14 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/lib/pq v1.12.2
 	github.com/redis/go-redis/v9 v9.18.0
+	github.com/segmentio/kafka-go v0.4.51
 )
 
-require github.com/gin-contrib/cors v1.7.7 // indirect
+require (
+	github.com/gin-contrib/cors v1.7.7 // indirect
+	github.com/klauspost/compress v1.17.6 // indirect
+	github.com/pierrec/lz4/v4 v4.1.15 // indirect
+)
 
 require (
 	github.com/aisstream/ais-message-models/golang/aisStream v0.0.0-20230628154343-8650fc5bf8c3

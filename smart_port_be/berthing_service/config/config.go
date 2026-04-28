@@ -13,12 +13,14 @@ type Config struct {
 	Neo4jUser  string
 	Neo4jPass  string
 	ServerPort string
+	KafkaBrokers string
 }
 
 // LoadConfig reads values from .env or environment variables
 func LoadConfig() *Config {
 	// We use _ because in a Docker/Cloud environment, the .env file might not exist, 
 	// and we don't want the app to crash.
+	
 	_ = godotenv.Load("../.env")
 	log.Println("Configuration successfully loaded...")
 
@@ -27,6 +29,7 @@ func LoadConfig() *Config {
 		Neo4jUser:  getEnv("NEO4J_USER", "neo4j"),
 		Neo4jPass:  getEnv("NEO4J_PASS", "password"),
 		ServerPort: getEnv("PORT", "5003"),
+		KafkaBrokers: getEnv("KAFKA_BROKERS", "localhost:9092"),
 	}
 }
 

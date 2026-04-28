@@ -123,3 +123,59 @@ export interface UserUpdateRequest {
   role?: UserRole;
   password?: string;
 }
+
+export interface LogisticsVesselVisitDto {
+  id: string;
+  vesselId: string;
+  vesselName: string;
+  length: number;
+  depth: number;
+  manifestFileUrl?: string;
+  status: string;
+  arrivalRequestedAt: string;
+}
+
+export type InvoiceStatus = "PENDING" | "PAID" | "CANCELLED" | "OVERDUE";
+export type PaymentStatus = "UNPAID" | "PARTIALLY_PAID" | "PAID" | "REFUNDED";
+
+export interface InvoiceLineItemDto {
+  id: string;
+  description: string;
+  amount: number;
+  category: string;
+  quantity?: number;
+  invoiceId: string;
+}
+
+export interface InvoiceDto {
+  id: string;
+  vesselId: string;
+  vesselName: string;
+  allocatedBy: string;
+  slotIds: string[];
+  slotCount: number;
+  arrivalPlanned: string;
+  stayDurationHours: number;
+  actualDurationHours?: number;
+  dockedAt?: string;
+  departedAt?: string;
+  baseBerthFee: number;
+  portFee: number;
+  penaltyAmount: number;
+  overstayHours: number;
+  totalAmount: number;
+  currency: string;
+  status: InvoiceStatus;
+  paymentStatus: PaymentStatus;
+  paidAt?: string;
+  dueDate: string;
+  notes?: string;
+  lineItems?: InvoiceLineItemDto[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface InvoiceListResponse {
+  invoices: InvoiceDto[];
+  count: number;
+}
