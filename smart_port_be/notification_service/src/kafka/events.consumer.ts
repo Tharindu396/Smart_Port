@@ -26,31 +26,33 @@ export class EventsConsumer {
       `[VESSEL_OVERSTAYED] ${event.vesselName} overdue by ${event.overdueByMinutes} min`,
     );
 
+
     try {
-      const overdueHours = (event.overdueByMinutes / 60).toFixed(1);
+      const overdueHours = (event.overdueByMinutes / 60).toFixed(1)|| '5.0';
+      const surchargePerHour = event.surchargePerHour || 500;
       const estimatedPenalty = (
-        (event.overdueByMinutes / 60) * event.surchargePerHour
+         Number(overdueHours)* surchargePerHour
       ).toFixed(2);
 
       const template = TemplateLoader.load(KAFKA_EVENTS.VESSEL_OVERSTAYED, {
         vesselName: event.vesselName,
-        berthId: event.berthId,
+        VesselID: event.VesselID,
         overdueHours,
         estimatedPenalty,
-        surchargePerHour: event.surchargePerHour.toString(),
+        surchargePerHour: surchargePerHour.toString(),
         scheduledDeparture: this.formatDateTime(
-          new Date(event.scheduledDeparture),
+          new Date(event.scheduledDeparture)|| new Date(),
         ),
       });
 
       await this.emailService.send({
-        to: event.shippingCompanyEmail,
+        to: event.ShippingAgentEmail,
         ...template,
       });
 
       this.notificationsService.add({
         title: 'Vessel Overstayed',
-        detail: `${event.vesselName} exceeded schedule by ${overdueHours}h at berth ${event.berthId}.`,
+        detail: `${event.VesselName} exceeded schedule by ${overdueHours}h at berth ${event.VesselID}.`,
         severity: 'critical',
         sourceEvent: KAFKA_EVENTS.VESSEL_OVERSTAYED,
       });
@@ -69,22 +71,23 @@ export class EventsConsumer {
   ): Promise<void> {
     this.logger.warn(`[PENALTY_TRIGGER] visitId: ${event.visitId}`);
     const currency = "USD"
+    const reason = event.reason || "Penalty triggered due to violation of port regulations.";
     try {
       const template = TemplateLoader.load(KAFKA_EVENTS.PENALTY_TRIGGER, {
-        vesselName: event.vesselName,
-        penaltyAmount: event.penaltyAmount.toFixed(2),
+        vesselName: event.vessel_name,
+        penaltyAmount: event.penalty_amount.toFixed(2),
         currency: currency,
-        reason: event.reason,
+        reason: reason,
       });
 
       await this.emailService.send({
-        to: event.shippingCompanyEmail,
+        to: event.ShippingAgentEmail,
         ...template,
       });
 
       this.notificationsService.add({
         title: 'Penalty Triggered',
-        detail: `${event.vesselName} penalty ${currency} ${event.penaltyAmount.toFixed(2)} triggered.`,
+        detail: `${event.vessel_name} penalty ${currency} ${event.penalty_amount.toFixed(2)} triggered.`,
         severity: 'warning',
         sourceEvent: KAFKA_EVENTS.PENALTY_TRIGGER,
       });

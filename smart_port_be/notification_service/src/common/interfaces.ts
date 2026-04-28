@@ -27,9 +27,9 @@ export interface PaymentFailedEvent {
 
 export interface VesselOverstayedEvent {
   visitId: string;
-  vesselName: string;
-  berthId: string;
-  shippingCompanyEmail: string;
+  VesselName: string;
+  VesselID: string;
+  ShippingAgentEmail: string;
   scheduledDeparture: string;
   overdueByMinutes: number;
   surchargePerHour: number;
@@ -37,9 +37,9 @@ export interface VesselOverstayedEvent {
 
 export interface PenaltyTriggerEvent {
   visitId: string;
-  vesselName: string;
-  shippingCompanyEmail: string;
-  penaltyAmount: number;
+  vessel_name: string;
+  ShippingAgentEmail: string;
+  penalty_amount: number;
   currency: string;
   reason: string;
 }
