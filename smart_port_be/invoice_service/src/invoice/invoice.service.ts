@@ -283,4 +283,64 @@ export class InvoiceService {
     }
     return null;
   }
+
+// PAYMENT SIMULATION LOGIC
+
+  async confirmPayment(invoiceId: string) {
+    const invoice = await this.findById(invoiceId);
+
+    if (invoice.status !== InvoiceStatus.PENDING) {
+      this.logger.warn(`Invoice ${invoiceId} is not PENDING`);
+    }
+
+    invoice.status = InvoiceStatus.PAID;
+    invoice.paymentStatus = PaymentStatus.PAID;
+    invoice.paidAt = new Date();
+
+    await this.invoiceRepo.save(invoice);
+
+  // Notify Berthing Service
+    await this.kafkaProducer.emitPaymentUpdate(
+      invoice.vesselId,
+      'SUCCESS',
+    );
+
+    this.logger.log(
+      `Payment CONFIRMED → invoice=${invoice.id}, vessel=${invoice.vesselId}`,
+    );
+
+    return {
+      message: 'Payment confirmed successfully',
+      invoice,
+    };
+  }
+
+  async rejectPayment(invoiceId: string) {
+    const invoice = await this.findById(invoiceId);
+
+    if (invoice.status !== InvoiceStatus.PENDING) {
+      this.logger.warn(`Invoice ${invoiceId} is not PENDING`);
+    }
+
+    invoice.status = InvoiceStatus.CANCELLED;
+    invoice.paymentStatus = PaymentStatus.UNPAID;
+    invoice.notes = 'Payment rejected (manual simulation)';
+
+    await this.invoiceRepo.save(invoice);
+
+  // Notify Berthing Service
+    await this.kafkaProducer.emitPaymentUpdate(
+      invoice.vesselId,
+      'FAILURE',
+    );
+
+    this.logger.log(
+      `Payment REJECTED → invoice=${invoice.id}, vessel=${invoice.vesselId}`,
+    );
+
+    return {
+      message: 'Payment rejected successfully',
+      invoice,
+    };
+  }
 }

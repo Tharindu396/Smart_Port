@@ -6,6 +6,7 @@ import {
   HttpCode,
   HttpStatus,
   ParseUUIDPipe,
+  Post,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiQuery, ApiParam, ApiResponse } from '@nestjs/swagger';
 import { InvoiceService } from './invoice.service';
@@ -61,5 +62,19 @@ export class InvoiceController {
   async findByVessel(@Param('vesselId') vesselId: string) {
     const invoices = await this.invoiceService.findByVesselId(vesselId);
     return { invoices, count: invoices.length };
+  }
+
+  @Post(':id/payment/confirm')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Simulate payment confirmation (SUCCESS)' })
+  async confirmPayment(@Param('id', ParseUUIDPipe) id: string) {
+    return this.invoiceService.confirmPayment(id);
+  }
+
+  @Post(':id/payment/reject')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Simulate payment rejection (FAILURE)' })
+  async rejectPayment(@Param('id', ParseUUIDPipe) id: string) {
+    return this.invoiceService.rejectPayment(id);
   }
 }

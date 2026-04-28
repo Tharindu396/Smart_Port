@@ -58,10 +58,13 @@ export class BerthingClient {
       }
 
       return entry;
-    } catch (error) {
+    } catch (error: unknown) {
+      const err = error as Error;
+
       this.logger.error(
-        `Failed to reach berthing service at ${url}: ${error.message}`,
+        `Failed to reach berthing service at ${url}: ${err.message}`,
       );
+
       return null;
     }
   }
