@@ -17,12 +17,12 @@ export default function Home() {
       */}
       <section className="relative min-h-screen flex flex-col overflow-hidden">
 
-        {/* Background image — swap src when ready */}
-        <Image
-          src = {background}
+        {/* Background image — lazily loaded */}
+        <img
+          src={background.src}
           alt="Background image of a busy port with vessels and cranes"
-          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-          style={{ backgroundImage: "@/app/components/images/background.png" }}
+          loading="lazy"
+          className="absolute inset-0 w-full h-full object-cover"
           aria-hidden="true"
         />
 

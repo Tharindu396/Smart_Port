@@ -4,9 +4,6 @@ import { EmailService } from '../channels/emails.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { TemplateLoader } from '../template/template.loader';
 import {
-  AllocationConfirmedEvent,
-  PaymentConfirmedEvent,
-  PaymentFailedEvent,
   VesselOverstayedEvent,
   PenaltyTriggerEvent,
 } from '../common/interfaces';
@@ -20,110 +17,6 @@ export class EventsConsumer {
     private readonly emailService: EmailService,
     private readonly notificationsService: NotificationsService,
   ) {}
-
-  @EventPattern(KAFKA_EVENTS.ALLOCATION_CONFIRMED)
-  async handleAllocationConfirmed(
-    @Payload() event: AllocationConfirmedEvent,
-  ): Promise<void> {
-    this.logger.log(`[ALLOCATION_CONFIRMED] visitId: ${event.visitId}`);
-
-    try {
-      const lockExpiry = this.formatTime(new Date(event.lockExpiry));
-
-      const template = TemplateLoader.load(KAFKA_EVENTS.ALLOCATION_CONFIRMED, {
-        vesselName: event.vesselName,
-        berthName: event.berthName,
-        berthId: event.berthId,
-        lockExpiry,
-      });
-
-      await this.emailService.send({
-        to: event.shippingCompanyEmail,
-        ...template,
-      });
-
-      this.notificationsService.add({
-        title: 'Allocation Confirmed',
-        detail: `${event.vesselName} allocated to berth ${event.berthName}.`,
-        severity: 'info',
-        sourceEvent: KAFKA_EVENTS.ALLOCATION_CONFIRMED,
-      });
-    } catch (err) {
-      this.logger.error(
-        `[ALLOCATION_CONFIRMED] Failed to process: ${err instanceof Error ? err.message : 'Unknown error'}`,
-        err instanceof Error ? err.stack : undefined,
-      );
-      throw err;
-    }
-  }
-
-  @EventPattern(KAFKA_EVENTS.PAYMENT_CONFIRMED)
-  async handlePaymentConfirmed(
-    @Payload() event: PaymentConfirmedEvent,
-  ): Promise<void> {
-    this.logger.log(`[PAYMENT_CONFIRMED] visitId: ${event.visitId}`);
-
-    try {
-      const template = TemplateLoader.load(KAFKA_EVENTS.PAYMENT_CONFIRMED, {
-        vesselName: event.vesselName,
-        berthId: event.berthId,
-        amount: event.amount.toFixed(2),
-        currency: event.currency,
-        transactionId: event.transactionId,
-        confirmedAt: this.formatDateTime(new Date(event.confirmedAt)),
-      });
-
-      await this.emailService.send({
-        to: event.shippingCompanyEmail,
-        ...template,
-      });
-
-      this.notificationsService.add({
-        title: 'Payment Confirmed',
-        detail: `${event.vesselName} payment ${event.currency} ${event.amount.toFixed(2)} confirmed.`,
-        severity: 'info',
-        sourceEvent: KAFKA_EVENTS.PAYMENT_CONFIRMED,
-      });
-    } catch (err) {
-      this.logger.error(
-        `[PAYMENT_CONFIRMED] Failed to process: ${err instanceof Error ? err.message : 'Unknown error'}`,
-        err instanceof Error ? err.stack : undefined,
-      );
-      throw err;
-    }
-  }
-
-  @EventPattern(KAFKA_EVENTS.PAYMENT_FAILED)
-  async handlePaymentFailed(
-    @Payload() event: PaymentFailedEvent,
-  ): Promise<void> {
-    this.logger.warn(`[PAYMENT_FAILED] visitId: ${event.visitId}`);
-
-    try {
-      const template = TemplateLoader.load(KAFKA_EVENTS.PAYMENT_FAILED, {
-        vesselName: event.vesselName,
-        reason: event.reason,
-      });
-
-      await this.emailService.send({
-        to: event.shippingCompanyEmail,
-        ...template,
-      });
-
-      this.notificationsService.add({
-        title: 'Payment Failed',
-        detail: `${event.vesselName} payment failed: ${event.reason}`,
-        severity: 'warning',
-        sourceEvent: KAFKA_EVENTS.PAYMENT_FAILED,
-      });
-    } catch (err) {
-      this.logger.error(
-        `[PAYMENT_FAILED] Failed to process: ${err instanceof Error ? err.message : 'Unknown error'}`,
-        err instanceof Error ? err.stack : undefined,
-      );
-      throw err;
-    }
-  }
 
   @EventPattern(KAFKA_EVENTS.VESSEL_OVERSTAYED)
   async handleVesselOverstayed(
@@ -175,12 +68,12 @@ export class EventsConsumer {
     @Payload() event: PenaltyTriggerEvent,
   ): Promise<void> {
     this.logger.warn(`[PENALTY_TRIGGER] visitId: ${event.visitId}`);
-
+    const currency = "USD"
     try {
       const template = TemplateLoader.load(KAFKA_EVENTS.PENALTY_TRIGGER, {
         vesselName: event.vesselName,
         penaltyAmount: event.penaltyAmount.toFixed(2),
-        currency: event.currency,
+        currency: currency,
         reason: event.reason,
       });
 
@@ -191,7 +84,7 @@ export class EventsConsumer {
 
       this.notificationsService.add({
         title: 'Penalty Triggered',
-        detail: `${event.vesselName} penalty ${event.currency} ${event.penaltyAmount.toFixed(2)} triggered.`,
+        detail: `${event.vesselName} penalty ${currency} ${event.penaltyAmount.toFixed(2)} triggered.`,
         severity: 'warning',
         sourceEvent: KAFKA_EVENTS.PENALTY_TRIGGER,
       });

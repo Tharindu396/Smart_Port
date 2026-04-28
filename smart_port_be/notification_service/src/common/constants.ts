@@ -1,7 +1,4 @@
 export const KAFKA_EVENTS = {
-  ALLOCATION_CONFIRMED: 'allocation.confirmed',
-  PAYMENT_CONFIRMED: 'invoice.paid',
-  PAYMENT_FAILED: 'invoice.cancelled',
   VESSEL_OVERSTAYED: 'vessel.overstayed',
   PENALTY_TRIGGER: 'invoice.penalty_applied',
 } as const;
